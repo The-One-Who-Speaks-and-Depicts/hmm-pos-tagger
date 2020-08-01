@@ -134,6 +134,9 @@ class HMM:
         else:     
             return np.matrix([self.emission_probs[self.tag_dict[tag]] for tag in probable_tags]).mean() 
 
+# firstly, we need to know the data format, to do something in here
+# and to do that, we should do something with Codex Marianus
+# and to do that, we should do something with an original project DB
 def get_data(filepath):
     raw_data = open(filepath, encoding='utf8').readlines()
     all_sequences = []

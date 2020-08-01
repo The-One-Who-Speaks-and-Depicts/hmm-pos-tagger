@@ -1,3 +1,4 @@
+#think about doing this
 import re 
 
 def is_verb(word):
