@@ -145,6 +145,17 @@ class HMM:
             tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
             predicted.append(word_tagged + ' ' + tag_acquired)
         return predicted
+    
+    def accuracy_score(self, data):
+        correct = 0
+        total = 0
+        for index, sequence in enumerate(data):  
+            predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
+            tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+            if (tag_acquired == data[index][0][1]):
+                correct = correct + 1
+            total = total + 1
+        print('Total accuracy score: ' + str(correct/total*100) + '%')
 
 
 def get_data(filepath):
@@ -158,15 +169,28 @@ def get_data(filepath):
             all_sequences.append(current_sequence)
     return all_sequences
 
-def get_data_for_prediction(filepath):
-    raw_data = open(filepath, encoding='utf8').readlines()
+def get_test_data(filepath):
+    raw_data = open(filepath, encoding='utf-8').readlines()
     all_sequences = []    
     for instance in raw_data:
         current_sequence = []
-        if instance != '\n':
+        if (instance[0] != "#" and instance.strip()):
             cols = instance.split()
-            current_sequence.append((cols[0], ""))
+            current_sequence.append((cols[1], cols[3]))
             all_sequences.append(current_sequence)
+    return all_sequences
+
+def get_data_for_prediction(filepath):
+    import json
+    all_sequences = [] 
+    with open(filepath, encoding='utf-8') as f:
+        d = json.load(f)    
+    for t in d["texts"]:
+        for c in t["clauses"]:
+            for r in c["realizations"]:
+                current_sequence = []
+                current_sequence.append((r["lexemeTwo"], ""))
+                all_sequences.append(current_sequence)                
     return all_sequences
 
 def split_data(data, percent):
@@ -194,14 +218,19 @@ def main(args):
         with open(args.folder + '\\hmm.pkl', 'wb') as output:
             pickle.dump(hmm, output, pickle.HIGHEST_PROTOCOL)
             print("Way to file: " + args.folder + "\\hmm.pkl")
+    elif (args.modus == 'accuracy'):
+        with open(args.folder + '\\hmm.pkl', 'rb') as inp:
+            predictor = pickle.load(inp)
+            predictor.accuracy_score(get_test_data(args.data))
+    elif (args.modus == 'prediction'):
+        with open(args.folder + '\\hmm.pkl', 'rb') as inp:
+            predictor = pickle.load(inp)
+            predictions = predictor.predict(get_data_for_prediction(args.data))
+            with open(args.folder + '\\result.txt', 'w', encoding='utf-8') as out:
+                for p in predictions:
+                    out.write(p + '\n')
     else:
-        pass
-        #with open(args.folder + '\\hmm.pkl', 'rb') as inp:
-            #predictor = pickle.load(inp)
-            #predictions = predictor.predict(get_data_for_prediction(args.data))
-            #with open(args.folder + '\\result.txt', 'w') as out:
-                #for p in predictions:
-                    #out.write(p + '\n')
+        print('Incorrect modus!')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
