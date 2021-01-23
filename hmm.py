@@ -1,14 +1,18 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*
+import os
 from random import shuffle
 from random import seed
 import numpy as np
-import seaborn as sns; sns.set()
+#import seaborn as sns; sns.set()
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 import itertools
-from subcategorization import is_verb, is_noun, is_pron, is_ques, is_adj, is_adv, is_det
+from subcategorization import is_punct, is_frag
 import argparse
 from collections import Counter
+import pickle
+import json
 
 class HMM:
 
@@ -70,7 +74,7 @@ class HMM:
         conf_mat = np.zeros((self.num_of_tags, self.num_of_tags))
         for index, sequence in enumerate(self.test_data):
             actual_tags = list(map(lambda x: self.tag_dict[x[1]], sequence))
-            predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)), actual_tags)
+            predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))            
             if self.printSequences==1:
                 print(' '.join(map(lambda x: x[0], sequence)))
                 print(str(index) + ' '.join([word for word, tag in sequence]))
@@ -86,13 +90,12 @@ class HMM:
                     word_truth[0] += 1
                 else: 
                     word_truth[1] += 1
-                conf_mat[actual_tag, predicted_tag] += 1  
+                conf_mat[actual_tag, predicted_tag] += 1
         print("sentence truth : "+str(sentence_truth[0]/(sentence_truth[0]+sentence_truth[1]))+"%")
         print("word truth : "+str(word_truth[0]/(word_truth[0]+word_truth[1]))+"%")
-        plot_confusion_matrix(conf_mat, normalize=False,unknown_to_singleton=self.unknown_to_singleton)
         return word_truth, sentence_truth, conf_mat
 
-    def viterbi(self, sequence, actual_tags):
+    def viterbi(self, sequence):
         seq_len = len(sequence)
         V = np.zeros((self.num_of_tags, seq_len))
         B = np.zeros((self.num_of_tags, seq_len))    
@@ -119,39 +122,51 @@ class HMM:
                 prob = self.emission_probs[state, index] 
                 return self.emission_probs[state, index]
 
-        tag_likelihoods = {'Verb': is_verb(word), 'Noun': is_noun(word),  'Pron': is_pron(word), 'Ques': is_ques(word), 'Adj': is_adj(word), 'Adv': is_adv(word), 'Det': is_det(word)}
+        tag_likelihoods = {'PUNCT': False, 'FRAG': False}
         probable_tags = [k for k, v in tag_likelihoods.items() if v == True]
         if len(probable_tags) == 0:
             if self.unknown_to_singleton == 1:
                 return self.unknown_tags
             else:
-                probable_tags.append('Noun')
+               probable_tags.append('NOUN')
         if state == -1:
             all_emissions = np.zeros(len(self.tags))
             for tag in probable_tags:
                 all_emissions[self.tag_dict[tag]] = self.emission_probs[self.tag_dict[tag]].mean()
             return all_emissions
         else:     
-            return np.matrix([self.emission_probs[self.tag_dict[tag]] for tag in probable_tags]).mean() 
+            return np.matrix([self.emission_probs[self.tag_dict[tag]] for tag in probable_tags]).mean()
+    
+    def predict(self, data):
+        predicted = []
+        for index, sequence in enumerate(data):
+            predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
+            word_tagged = ' '.join(map(lambda x: x[0], sequence))
+            tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+            predicted.append(word_tagged + ' ' + tag_acquired)
+        return predicted
 
-# firstly, we need to know the data format, to do something in here
-# and to do that, we should do something with Codex Marianus
-# and to do that, we should do something with an original project DB
+
 def get_data(filepath):
-    raw_data = open(filepath, encoding='utf8').readlines()
-    all_sequences = []
-    current_sequence = []
+    raw_data = open(filepath, encoding='utf-8').readlines()
+    all_sequences = []    
     for instance in raw_data:
+        current_sequence = []
+        if (instance[0] != "#" and instance.strip()):
+            cols = instance.split('\t')
+            current_sequence.append((cols[1], cols[3]))
+            all_sequences.append(current_sequence)
+    return all_sequences
+
+def get_data_for_prediction(filepath):
+    raw_data = open(filepath, encoding='utf8').readlines()
+    all_sequences = []    
+    for instance in raw_data:
+        current_sequence = []
         if instance != '\n':
             cols = instance.split()
-            if cols[1] != '_':
-                if cols[3] == 'satın':
-                    current_sequence.append((cols[1], 'Noun'))
-                else:    
-                    current_sequence.append((cols[1], cols[3]))
-        else:
+            current_sequence.append((cols[0], ""))
             all_sequences.append(current_sequence)
-            current_sequence = []   
     return all_sequences
 
 def split_data(data, percent):
@@ -161,63 +176,41 @@ def split_data(data, percent):
 
 def normalize(matrix):
     row_sums = matrix.sum(axis=1)
+    np.seterr(divide='ignore', invalid='ignore')
     return matrix / row_sums[:, np.newaxis]            
 
 def enumerate_list(data):
     return {instance: index for index, instance in enumerate(data)}
 
 
-def plot_confusion_matrix(cm, cmap=None, normalize = True, target_names = None, title = "Confusion Matrix", unknown_to_singleton=0):
-    
-    if cmap is None:
-        cmap = plt.get_cmap('Blues')
-
-    plt.figure(figsize=(24, 18))
-    plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    #plt.title(title)
-    plt.colorbar()
-
-    if target_names is not None:
-        tick_marks = np.arange(len(target_names))
-        plt.xticks(tick_marks, target_names, rotation=45)
-        plt.yticks(tick_marks, target_names)
-
-    if normalize:
-        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-
-
-    thresh = cm.max() / 1.5 if normalize else cm.max() / 2
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        if normalize:
-            plt.text(j, i, "{:0.4f}".format(cm[i, j]),
-                     horizontalalignment="center",
-                     color="white" if cm[i, j] > thresh else "black")
-        else:
-            plt.text(j, i, "{:,}".format(cm[i, j]),
-                     horizontalalignment="center",
-                     color="white" if cm[i, j] > thresh else "black")
-
-
-    plt.tight_layout()
-    if unknown_to_singleton==1:
-        plt.savefig('output_UtoS.png')
-    else:
-        plt.savefig('output.png')
-
 def main(args):
-    seed(5)
-    all_sequences = get_data(args.data)
-    train_data, test_data = split_data(all_sequences, args.split)
-    hmm = HMM(train_data, test_data, int(args.unknown_to_singleton),int(args.printSequences))
-    hmm.train()
-    hmm.test()
+    if (args.modus == 'training'):
+        seed(5)
+        all_sequences = get_data(args.data)
+        train_data, test_data = split_data(all_sequences, args.split)
+        hmm = HMM(train_data, test_data, int(args.unknown_to_singleton),int(args.printSequences))
+        hmm.train()
+        hmm.test()
+        with open(args.folder + '\\hmm.pkl', 'wb') as output:
+            pickle.dump(hmm, output, pickle.HIGHEST_PROTOCOL)
+            print("Way to file: " + args.folder + "\\hmm.pkl")
+    else:
+        pass
+        #with open(args.folder + '\\hmm.pkl', 'rb') as inp:
+            #predictor = pickle.load(inp)
+            #predictions = predictor.predict(get_data_for_prediction(args.data))
+            #with open(args.folder + '\\result.txt', 'w') as out:
+                #for p in predictions:
+                    #out.write(p + '\n')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data', default='Project (Application 1) (MetuSabanci Treebank).conll')
+    parser.add_argument('--data')
     parser.add_argument('--split', default='90')
     parser.add_argument('--unknown_to_singleton', default='0')
     parser.add_argument('--printSequences',default='0')
+    parser.add_argument('--folder', default=os.path.dirname(os.path.realpath(__file__)))
+    parser.add_argument('--modus', default='training')
 
     args = parser.parse_args()
     main(args)
