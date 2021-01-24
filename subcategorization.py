@@ -7,7 +7,7 @@ def is_frag(word):
         return False
 
 def is_punct(word):
-    if re.search(r'.|,|:', word):
+    if re.search(r'\.|,|:', word):
         return True
     else:
         return False

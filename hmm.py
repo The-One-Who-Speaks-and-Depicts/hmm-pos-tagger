@@ -140,10 +140,23 @@ class HMM:
     def predict(self, data):
         predicted = []
         for index, sequence in enumerate(data):
-            predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
-            word_tagged = ' '.join(map(lambda x: x[0], sequence))
-            tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
-            predicted.append(word_tagged + ' ' + tag_acquired)
+            if is_frag(sequence[0][0]):
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_acquired = 'FRAG'
+                predicted.append(word_tagged + ' ' + tag_acquired)
+            elif is_punct(sequence[0][0]):
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_acquired = 'PUNCT'
+                predicted.append(word_tagged + ' ' + tag_acquired)
+            elif is_digit(sequence[0][0]):
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_acquired = 'DIGIT'
+                predicted.append(word_tagged + ' ' + tag_acquired)
+            else:
+                predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+                predicted.append(word_tagged + ' ' + tag_acquired)
         return predicted
     
     def accuracy_score(self, data):
