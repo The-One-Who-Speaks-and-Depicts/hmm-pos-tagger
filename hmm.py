@@ -143,20 +143,20 @@ class HMM:
             if is_frag(sequence[0][0]):
                 word_tagged = ' '.join(map(lambda x: x[0], sequence))
                 tag_acquired = 'FRAG'
-                predicted.append(word_tagged + ' ' + tag_acquired)
+                predicted.append(sequence[0][2] + '\t' + tag_acquired)
             elif is_punct(sequence[0][0]):
                 word_tagged = ' '.join(map(lambda x: x[0], sequence))
                 tag_acquired = 'PUNCT'
-                predicted.append(word_tagged + ' ' + tag_acquired)
+                predicted.append(sequence[0][2] + '\t' + tag_acquired)
             elif is_digit(sequence[0][0]):
                 word_tagged = ' '.join(map(lambda x: x[0], sequence))
                 tag_acquired = 'DIGIT'
-                predicted.append(word_tagged + ' ' + tag_acquired)
+                predicted.append(sequence[0][2] + '\t' + tag_acquired)
             else:
                 predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
                 word_tagged = ' '.join(map(lambda x: x[0], sequence))
                 tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
-                predicted.append(word_tagged + ' ' + tag_acquired)
+                predicted.append(sequence[0][2] + '\t' + tag_acquired)
         return predicted
     
     def accuracy_score(self, data):
@@ -172,7 +172,7 @@ class HMM:
 
 
 def get_data(filepath):
-    raw_data = open(filepath, encoding='utf-8').readlines()
+    raw_data = open(filepath, encoding='utf8').readlines()
     all_sequences = []    
     for instance in raw_data:
         current_sequence = []
@@ -183,7 +183,7 @@ def get_data(filepath):
     return all_sequences
 
 def get_test_data(filepath):
-    raw_data = open(filepath, encoding='utf-8').readlines()
+    raw_data = open(filepath, encoding='utf8').readlines()
     all_sequences = []    
     for instance in raw_data:
         current_sequence = []
@@ -196,14 +196,14 @@ def get_test_data(filepath):
 def get_data_for_prediction(filepath):
     import json
     all_sequences = [] 
-    with open(filepath, encoding='utf-8') as f:
+    with open(filepath, encoding='utf8') as f:
         d = json.load(f)    
     for t in d["texts"]:
         for c in t["clauses"]:
             for r in c["realizations"]:
                 current_sequence = []
                 if r["lexemeTwo"].strip():
-                    current_sequence.append((r["lexemeTwo"], ""))
+                    current_sequence.append((r["lexemeTwo"], "", r["textID"] + "_" + r["clauseID"] + "_" + r["realizationID"]))
                     all_sequences.append(current_sequence)                
     return all_sequences
 
@@ -240,9 +240,19 @@ def main(args):
         with open(args.folder + '\\hmm.pkl', 'rb') as inp:
             predictor = pickle.load(inp)
             predictions = predictor.predict(get_data_for_prediction(args.data))
-            with open(args.folder + '\\result.txt', 'w', encoding='utf-8') as out:
-                for p in predictions:
-                    out.write(p + '\n')
+            import json
+            with open(args.data, encoding='utf8') as f:
+                d = json.load(f)    
+            for t in d["texts"]:
+                for c in t["clauses"]:
+                    for r in c["realizations"]:
+                        for p in predictions:
+                            id, pos = p.split('\t')
+                            textID, clauseID, realizationID = id.split('_')
+                            if ((r["textID"] == textID) and (r["clauseID"] == clauseID) and (r["realizationID"] == realizationID)):                                
+                                r["realizationFields"].append({"PoS":[pos]})        
+            with open(args.data, 'w', encoding='utf8') as f:
+                json.dump(d, f, ensure_ascii=False)                    
     else:
         print('Incorrect modus!')
 
