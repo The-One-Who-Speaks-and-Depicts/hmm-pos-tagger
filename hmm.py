@@ -8,7 +8,7 @@ import numpy as np
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 import itertools
-from subcategorization import is_punct, is_frag
+from subcategorization import is_punct, is_frag, is_digit
 import argparse
 from collections import Counter
 import pickle
@@ -189,8 +189,9 @@ def get_data_for_prediction(filepath):
         for c in t["clauses"]:
             for r in c["realizations"]:
                 current_sequence = []
-                current_sequence.append((r["lexemeTwo"], ""))
-                all_sequences.append(current_sequence)                
+                if r["lexemeTwo"].strip():
+                    current_sequence.append((r["lexemeTwo"], ""))
+                    all_sequences.append(current_sequence)                
     return all_sequences
 
 def split_data(data, percent):
