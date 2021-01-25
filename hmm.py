@@ -106,6 +106,7 @@ def n_gram_test(data, folder, grammage):
             if correct_part == total_part:
                 print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')  
     print(f'Accuracy score: {correct/total*100}%')
+    
 
 class HMM:
 
@@ -264,6 +265,37 @@ class HMM:
                 if correct_part == total_part:
                     print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
         print('Total accuracy score: ' + str(correct/total*100) + '%')
+    
+    def hybrid_accuracy_score(self, data, folder, grammage):
+        from collections import Counter
+        with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
+            final_dictionary = pickle.load(f)
+        import re
+        correct = 0
+        total = 0
+        correct_by_part = []
+        total_by_part = []
+        for index, sequence in enumerate(data):  
+            predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
+            tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+            if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
+                tag_acquired = 'ADJ'
+            if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
+                tag_acquired = 'VERB'            
+            if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
+                tag_acquired = 'X'
+            if (tag_acquired == data[index][0][1]):
+                correct = correct + 1
+                correct_by_part.append(data[index][0][1])
+            total = total + 1
+            total_by_part.append(data[index][0][1])
+        correct_by_part_fin = Counter(correct_by_part)
+        total_by_part_fin = Counter(total_by_part)
+        for correct_part in correct_by_part_fin.keys():
+            for total_part in total_by_part_fin.keys():
+                if correct_part == total_part:
+                    print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
+        print('Total accuracy score: ' + str(correct/total*100) + '%')
 
 
 def get_data(filepath):
@@ -340,6 +372,10 @@ def main(args):
                 predictor.accuracy_score(get_test_data(args.data))
         elif (args.method == 'grams'):
             n_gram_test(args.data, args.folder, args.grammage)
+        elif (args.method == 'hmmg'):
+            with open(args.folder + '\\hmm.pkl', 'rb') as inp:
+                predictor = pickle.load(inp)
+                predictor.hybrid_accuracy_score(get_test_data(args.data), args.folder, args.grammage)
         else:
             print('Wrong method!')
     elif (args.modus == 'prediction'):
