@@ -61,8 +61,39 @@ def n_gram_train(filepath, grammage, folder):
     with open(folder + "\\" + grammage + 'grams.pkl', 'wb+') as f:
         pickle.dump(final_dictionary, f, pickle.HIGHEST_PROTOCOL)
         
-def n_gram_test():
-    pass
+def n_gram_test(data, folder, grammage):
+    import pandas as pd
+    test_dataset = pd.DataFrame(columns=['WORD', 'TAG'])
+    raw_data = open(data, encoding='utf8').readlines()
+    counter = 0   
+    for instance in raw_data:
+      if (instance[0] != "#" and instance.strip()):
+        cols = instance.split('\t')
+        test_dataset.loc[counter] = [cols[1], cols[3]]
+        counter = counter + 1
+    with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
+        final_dictionary = pickle.load(f)
+    import re
+    correct = 0
+    total = 0
+    for index, row in test_dataset.iterrows():
+      key_found = False
+      for key in final_dictionary.keys():
+        if re.search(final_dictionary[key][0], row['WORD']):
+          if key == row['TAG']:
+            correct = correct + 1
+          key_found = True
+          break
+        elif re.search(final_dictionary[key][1], row['WORD']):
+          if key == row['TAG']:
+            correct = correct + 1
+          key_found = True
+          break
+      if not key_found:
+        if row['TAG'] == 'VERB':
+           correct = correct + 1
+      total = total + 1
+    print(f'Accuracy score: {correct/total*100}%')
 
 class HMM:
 
@@ -289,9 +320,14 @@ def main(args):
         else:
             print('Wrong method!')
     elif (args.modus == 'accuracy'):
-        with open(args.folder + '\\hmm.pkl', 'rb') as inp:
-            predictor = pickle.load(inp)
-            predictor.accuracy_score(get_test_data(args.data))
+        if (args.method == 'hmm'):
+            with open(args.folder + '\\hmm.pkl', 'rb') as inp:
+                predictor = pickle.load(inp)
+                predictor.accuracy_score(get_test_data(args.data))
+        elif (args.method == 'grams'):
+            n_gram_test(args.data, args.folder, args.grammage)
+        else:
+            print('Wrong method!')
     elif (args.modus == 'prediction'):
         with open(args.folder + '\\hmm.pkl', 'rb') as inp:
             predictor = pickle.load(inp)
