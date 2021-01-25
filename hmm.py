@@ -150,9 +150,7 @@ class HMM:
         self.initial_probs = initial_probs/initial_probs.sum()           
 
     def test(self):
-        sentence_truth = [0, 0]
         word_truth = [0, 0]
-        conf_mat = np.zeros((self.num_of_tags, self.num_of_tags))
         for index, sequence in enumerate(self.test_data):
             actual_tags = list(map(lambda x: self.tag_dict[x[1]], sequence))
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))            
@@ -161,20 +159,13 @@ class HMM:
                 print(str(index) + ' '.join([word for word, tag in sequence]))
                 print(' '.join(map(lambda x: x[1], sequence)))
                 print(' '.join([str(self.tags[tag]) for tag in predicted_tags]))
-                print(' '.join(map(lambda x: str(self.word_dict.get(x[0].lower(),-1)), sequence)))
-            if actual_tags == predicted_tags:
-                sentence_truth[0] += 1
-            else: 
-                sentence_truth[1] += 1
+                print(' '.join(map(lambda x: str(self.word_dict.get(x[0].lower(),-1)), sequence)))            
             for actual_tag, predicted_tag in zip(actual_tags, predicted_tags):
                 if actual_tag == predicted_tag:
                     word_truth[0] += 1
                 else: 
                     word_truth[1] += 1
-                conf_mat[actual_tag, predicted_tag] += 1
-        print("sentence truth : "+str(sentence_truth[0]/(sentence_truth[0]+sentence_truth[1]))+"%")
         print("word truth : "+str(word_truth[0]/(word_truth[0]+word_truth[1]))+"%")
-        return word_truth, sentence_truth, conf_mat
 
     def viterbi(self, sequence):
         seq_len = len(sequence)
