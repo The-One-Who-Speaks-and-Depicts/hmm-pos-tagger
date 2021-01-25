@@ -76,23 +76,35 @@ def n_gram_test(data, folder, grammage):
     import re
     correct = 0
     total = 0
+    correct_by_part = []
+    total_by_part = []
     for index, row in test_dataset.iterrows():
       key_found = False
       for key in final_dictionary.keys():
         if re.search(final_dictionary[key][0], row['WORD']):
           if key == row['TAG']:
             correct = correct + 1
+            correct_by_part.append(key)
           key_found = True
           break
         elif re.search(final_dictionary[key][1], row['WORD']):
           if key == row['TAG']:
             correct = correct + 1
+            correct_by_part.append(key)
           key_found = True
           break
       if not key_found:
         if row['TAG'] == 'VERB':
            correct = correct + 1
+           correct_by_part.append(key)
       total = total + 1
+      total_by_part.append(key)
+    correct_by_part_fin = Counter(correct_by_part)
+    total_by_part_fin = Counter(total_by_part)
+    for correct_part in correct_by_part_fin.keys():
+        for total_part in total_by_part_fin.keys():
+            if correct_part == total_part:
+                print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')  
     print(f'Accuracy score: {correct/total*100}%')
 
 class HMM:
@@ -232,14 +244,25 @@ class HMM:
         return predicted
     
     def accuracy_score(self, data):
+        from collections import Counter
         correct = 0
         total = 0
+        correct_by_part = []
+        total_by_part = []
         for index, sequence in enumerate(data):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
             if (tag_acquired == data[index][0][1]):
                 correct = correct + 1
+                correct_by_part.append(data[index][0][1])
             total = total + 1
+            total_by_part.append(data[index][0][1])
+        correct_by_part_fin = Counter(correct_by_part)
+        total_by_part_fin = Counter(total_by_part)
+        for correct_part in correct_by_part_fin.keys():
+            for total_part in total_by_part_fin.keys():
+                if correct_part == total_part:
+                    print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
         print('Total accuracy score: ' + str(correct/total*100) + '%')
 
 
