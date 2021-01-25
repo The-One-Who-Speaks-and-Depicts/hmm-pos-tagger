@@ -14,6 +14,56 @@ from collections import Counter
 import pickle
 import json
 
+def test_split(word, pos, join, grams):
+    n_grams = []
+    if ((grams == 0) or (len(word) <= grams)):
+        if (join == 1):
+            n_grams.append([word + pos])
+        else:
+            n_grams.append([word])
+    else:
+        counter = 0
+        while ((len(word) - counter) >= grams):
+            resulting_word = ''
+            for i in range (counter, counter + grams):
+                resulting_word += word[i]
+            if (join == 0):
+                n_grams.append([resulting_word])
+            else:
+                n_grams.append([resulting_word + pos])
+            counter = counter + 1
+    return n_grams
+
+def n_gram_train(filepath, grammage, folder):    
+    import pandas as pd
+    dataset = pd.DataFrame(columns=['WORD', 'TAG'])
+    raw_data = open(filepath, encoding='utf8').readlines()
+    counter = 0   
+    for instance in raw_data:
+      if (instance[0] != "#" and instance.strip()):
+        cols = instance.split('\t')
+        dataset.loc[counter] = [cols[1], cols[3]]
+        counter = counter + 1
+    names = dataset['TAG'].unique().tolist()
+    from collections import Counter
+    final_dictionary = {}
+    for name in names:
+        clone = dataset[dataset['TAG'] == name]
+        n_grams = []
+        for word in clone['WORD']:
+          for gram in test_split(word, "", 0, int(grammage)):
+            n_grams.extend(gram)
+        cnt = Counter(n_grams)
+        grams = []
+        for gram in cnt.most_common(2):
+          grams.append(gram[0])
+        final_dictionary[name] = grams
+    with open(folder + "\\" + grammage + 'grams.pkl', 'wb+') as f:
+        pickle.dump(final_dictionary, f, pickle.HIGHEST_PROTOCOL)
+        
+def n_gram_test():
+    pass
+
 class HMM:
 
     def __init__(self, train_data, test_data,unknown_to_singleton,printSequences):
@@ -223,15 +273,21 @@ def enumerate_list(data):
 
 def main(args):
     if (args.modus == 'training'):
-        seed(5)
-        all_sequences = get_data(args.data)
-        train_data, test_data = split_data(all_sequences, args.split)
-        hmm = HMM(train_data, test_data, int(args.unknown_to_singleton),int(args.printSequences))
-        hmm.train()
-        hmm.test()
-        with open(args.folder + '\\hmm.pkl', 'wb') as output:
-            pickle.dump(hmm, output, pickle.HIGHEST_PROTOCOL)
-            print("Way to file: " + args.folder + "\\hmm.pkl")
+        if (args.method == 'hmm'):
+            seed(5)
+            all_sequences = get_data(args.data)
+            train_data, test_data = split_data(all_sequences, args.split)
+            hmm = HMM(train_data, test_data, int(args.unknown_to_singleton),int(args.printSequences))
+            hmm.train()
+            hmm.test()
+            with open(args.folder + '\\hmm.pkl', 'wb') as output:
+                pickle.dump(hmm, output, pickle.HIGHEST_PROTOCOL)
+                print("Way to file: " + args.folder + "\\hmm.pkl")
+        elif (args.method == 'grams'):
+            n_gram_train(args.data, args.grammage, args.folder)
+            print("Way to file: " + args.folder + "\\" + args.grammage + "grams.pkl")
+        else:
+            print('Wrong method!')
     elif (args.modus == 'accuracy'):
         with open(args.folder + '\\hmm.pkl', 'rb') as inp:
             predictor = pickle.load(inp)
@@ -264,6 +320,8 @@ if __name__ == '__main__':
     parser.add_argument('--printSequences',default='0')
     parser.add_argument('--folder', default=os.path.dirname(os.path.realpath(__file__)))
     parser.add_argument('--modus', default='training')
+    parser.add_argument('--method', default='hmm')
+    parser.add_argument('--grammage', default='3')
 
     args = parser.parse_args()
     main(args)
