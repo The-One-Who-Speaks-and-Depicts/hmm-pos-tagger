@@ -222,7 +222,10 @@ class HMM:
         else:     
             return np.matrix([self.emission_probs[self.tag_dict[tag]] for tag in probable_tags]).mean()
     
-    def predict(self, data):
+    def predict(self, data, folder, grammage):
+        with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
+            final_dictionary = pickle.load(f)
+        import re
         predicted = []
         for index, sequence in enumerate(data):
             if is_frag(sequence[0][0]):
@@ -241,6 +244,12 @@ class HMM:
                 predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
                 word_tagged = ' '.join(map(lambda x: x[0], sequence))
                 tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+                if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
+                    tag_acquired = 'ADJ'
+                if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
+                    tag_acquired = 'VERB'            
+                if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
+                    tag_acquired = 'X'
                 predicted.append(sequence[0][2] + '\t' + tag_acquired)
         return predicted
     
@@ -459,7 +468,7 @@ def main(args):
     elif (args.modus == 'prediction'):
         with open(args.folder + '\\hmm.pkl', 'rb') as inp:
             predictor = pickle.load(inp)
-            predictions = predictor.predict(get_data_for_prediction(args.data))
+            predictions = predictor.predict(get_data_for_prediction(args.data), args.folder, args.grammage)
             import json
             with open(args.data, encoding='utf8') as f:
                 d = json.load(f)    
@@ -486,7 +495,7 @@ if __name__ == '__main__':
     parser.add_argument('--folder', default=os.path.dirname(os.path.realpath(__file__)))
     parser.add_argument('--modus', default='training')
     parser.add_argument('--method', default='hmm')
-    parser.add_argument('--grammage', default='3')
+    parser.add_argument('--grammage', default='4')
 
     args = parser.parse_args()
     main(args)
