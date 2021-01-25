@@ -296,7 +296,81 @@ class HMM:
                 if correct_part == total_part:
                     print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
         print('Total accuracy score: ' + str(correct/total*100) + '%')
-
+    
+    def hybrid_accuracy_score_with_classification(self, data_test, data_train, folder, grammage):
+        from collections import Counter
+        with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
+            final_dictionary = pickle.load(f)
+        import re
+        import pandas as pd
+        tags_gram = []
+        tags_hmm = []
+        tags_golden = []
+        for index, sequence in enumerate(data_train):  
+            predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
+            tag_hmm = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+            tag_changed = False
+            if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
+                tag_gram = 'ADJ'
+                tag_changed = True
+            if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
+                tag_gram = 'VERB'
+                tag_changed = True
+            if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
+                tag_gram = 'X'
+                tag_changed = True
+            if not tag_changed:
+                tag_gram = tag_hmm
+            tags_gram.append(tag_gram)
+            tags_hmm.append(tag_hmm)
+            tags_golden.append(data_train[index][0][1])
+        counter = 0
+        quantified_tags = {}
+        for tag in list(set(tags_golden)):
+            quantified_tags[tag] = counter
+            counter = counter + 1
+        inverted_tags = {v: k for k, v in quantified_tags.items()}
+        dataset = pd.DataFrame(columns=['HMM', 'GRAM', 'RES'])
+        for i in range(len(tags_golden)):
+            dataset.loc[i] = [quantified_tags[tags_hmm[i]], quantified_tags[tags_gram[i]], quantified_tags[tags_golden[i]]]
+        y = dataset.iloc[:,2]
+        y = y.astype('int')
+        X = dataset.iloc[:,:2]
+        X = np.array(X.values.tolist())
+        from sklearn.ensemble import ExtraTreesClassifier
+        ETF = ExtraTreesClassifier(n_estimators=100, max_depth=2, random_state=0)
+        ETF.fit(X, y)
+        correct = 0
+        total = 0
+        correct_by_part = []
+        total_by_part = []
+        for index, sequence in enumerate(data_test):  
+            predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
+            tag_hmm = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+            if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
+                tag_gram = 'ADJ'
+            if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
+                tag_gram = 'VERB'
+            if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
+                tag_gram = 'X'
+            if (tag_gram != tag_hmm):
+                tag_final = inverted_tags[ETF.predict(np.array([[quantified_tags[tag_hmm], quantified_tags[tag_gram]]]))[0]]
+                if (tag_final == data_test[index][0][1]):
+                    correct = correct + 1
+                    correct_by_part.append(data_test[index][0][1])
+            else:
+                if (tag_hmm == data_test[index][0][1]):
+                    correct = correct + 1
+                    correct_by_part.append(data_test[index][0][1])
+            total = total + 1
+            total_by_part.append(data_test[index][0][1])
+        correct_by_part_fin = Counter(correct_by_part)
+        total_by_part_fin = Counter(total_by_part)
+        for correct_part in correct_by_part_fin.keys():
+            for total_part in total_by_part_fin.keys():
+                if correct_part == total_part:
+                    print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
+        print('Total accuracy score: ' + str(correct/total*100) + '%')
 
 def get_data(filepath):
     raw_data = open(filepath, encoding='utf8').readlines()
@@ -376,6 +450,10 @@ def main(args):
             with open(args.folder + '\\hmm.pkl', 'rb') as inp:
                 predictor = pickle.load(inp)
                 predictor.hybrid_accuracy_score(get_test_data(args.data), args.folder, args.grammage)
+        elif (args.method == 'hmmc'):
+            with open(args.folder + '\\hmm.pkl', 'rb') as inp:
+                predictor = pickle.load(inp)
+                predictor.hybrid_accuracy_score_with_classification(get_test_data(args.data), get_test_data(args.train_data), args.folder, args.grammage)
         else:
             print('Wrong method!')
     elif (args.modus == 'prediction'):
@@ -401,6 +479,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data')
+    parser.add_argument('--train_data', default='')
     parser.add_argument('--split', default='90')
     parser.add_argument('--unknown_to_singleton', default='0')
     parser.add_argument('--printSequences',default='0')
