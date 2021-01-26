@@ -356,13 +356,17 @@ class HMM:
         for index, sequence in enumerate(data_test):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_hmm = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+            tag_changed = False
             if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
                 tag_gram = 'ADJ'
+                tag_changed = True
             if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
                 tag_gram = 'VERB'
+                tag_changed = True
             if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
                 tag_gram = 'X'
-            if (tag_gram != tag_hmm):
+                tag_changed = True
+            if tag_changed:
                 tag_final = inverted_tags[ETF.predict(np.array([[quantified_tags[tag_hmm], quantified_tags[tag_gram]]]))[0]]
                 if (tag_final == data_test[index][0][1]):
                     correct = correct + 1
