@@ -78,6 +78,7 @@ def n_gram_test(data, folder, grammage):
     total = 0
     correct_by_part = []
     total_by_part = []
+    true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
     for index, row in test_dataset.iterrows():
       key_found = False
       for key in final_dictionary.keys():
@@ -86,17 +87,20 @@ def n_gram_test(data, folder, grammage):
             correct = correct + 1
             correct_by_part.append(key)
           key_found = True
+          true_pred_dataset.loc[index] = [row['TAG'], key]
           break
         elif re.search(final_dictionary[key][1], row['WORD']):
           if key == row['TAG']:
             correct = correct + 1
             correct_by_part.append(key)
           key_found = True
+          true_pred_dataset.loc[index] = [row['TAG'], key]
           break
       if not key_found:
         if row['TAG'] == 'VERB':
            correct = correct + 1
            correct_by_part.append(key)
+        true_pred_dataset.loc[index] = [row['TAG'], 'VERB']
       total = total + 1
       total_by_part.append(key)
     correct_by_part_fin = Counter(correct_by_part)
@@ -106,6 +110,32 @@ def n_gram_test(data, folder, grammage):
             if correct_part == total_part:
                 print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')  
     print(f'Accuracy score: {correct/total*100}%')
+    from sklearn.metrics import confusion_matrix
+    for pos in true_pred_dataset['pred'].unique().tolist():
+        this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
+        cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
+        print(f'Raw confusion matrix for {pos}.\n{cm}')
+        for index, row in this_pos_split.iterrows():
+            if (row['pred'] == row['true']):
+                row['pred'] = 1
+            else:
+                row['pred'] = 0
+            row['true'] = 1            
+        try:
+            tn, fp, fn, tp = confusion_matrix(this_pos_split['true'].astype('int'), this_pos_split['pred'].astype('int')).ravel()
+            print(f'Binarized confusion matrix for {pos}. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
+        except:
+            print(f'Unable to binarize confusion matrix for {pos}')
+    cm = confusion_matrix(true_pred_dataset['true'], true_pred_dataset['pred'])
+    print(f'Raw total confusion matrix.\n{cm}')        
+    for index, row in true_pred_dataset.iterrows():
+        if (row['pred'] == row['true']):
+            row['pred'] = 1
+        else:
+            row['pred'] = 0
+        row['true'] = 1
+    tn, fp, fn, tp = confusion_matrix(true_pred_dataset['true'].astype('int'), true_pred_dataset['pred'].astype('int')).ravel()
+    print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
     
 
 class HMM:
@@ -255,10 +285,12 @@ class HMM:
     
     def accuracy_score(self, data):
         from collections import Counter
+        import pandas as pd
         correct = 0
         total = 0
         correct_by_part = []
         total_by_part = []
+        true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
         for index, sequence in enumerate(data):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
@@ -267,6 +299,7 @@ class HMM:
                 correct_by_part.append(data[index][0][1])
             total = total + 1
             total_by_part.append(data[index][0][1])
+            true_pred_dataset.loc[index] = [data[index][0][1], tag_acquired]
         correct_by_part_fin = Counter(correct_by_part)
         total_by_part_fin = Counter(total_by_part)
         for correct_part in correct_by_part_fin.keys():
@@ -274,6 +307,32 @@ class HMM:
                 if correct_part == total_part:
                     print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
         print('Total accuracy score: ' + str(correct/total*100) + '%')
+        from sklearn.metrics import confusion_matrix
+        for pos in true_pred_dataset['pred'].unique().tolist():
+            this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
+            cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
+            print(f'Raw confusion matrix for {pos}.\n{cm}')
+            for index, row in this_pos_split.iterrows():
+                if (row['pred'] == row['true']):
+                    row['pred'] = 1
+                else:
+                    row['pred'] = 0
+                row['true'] = 1            
+            try:
+                tn, fp, fn, tp = confusion_matrix(this_pos_split['true'].astype('int'), this_pos_split['pred'].astype('int')).ravel()
+                print(f'Binarized confusion matrix for {pos}. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
+            except:
+                print(f'Unable to binarize confusion matrix for {pos}')
+        cm = confusion_matrix(true_pred_dataset['true'], true_pred_dataset['pred'])
+        print(f'Raw total confusion matrix.\n{cm}')        
+        for index, row in true_pred_dataset.iterrows():
+            if (row['pred'] == row['true']):
+                    row['pred'] = 1
+            else:
+                row['pred'] = 0
+            row['true'] = 1
+        tn, fp, fn, tp = confusion_matrix(true_pred_dataset['true'].astype('int'), true_pred_dataset['pred'].astype('int')).ravel()
+        print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
     
     def hybrid_accuracy_score(self, data, folder, grammage):
         from collections import Counter
@@ -290,6 +349,8 @@ class HMM:
         total = 0
         correct_by_part = []
         total_by_part = []
+        import pandas as pd
+        true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
         for index, sequence in enumerate(data):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
@@ -297,7 +358,9 @@ class HMM:
                 if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
                     tag_acquired = 'VERB'
                 if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
-                    tag_acquired = 'ADJ'          
+                    tag_acquired = 'ADJ'
+                #if (re.search(final_dictionary['ADV'][0], sequence[0][0]) or re.search(final_dictionary['ADV'][1], sequence[0][0])):
+                    #tag_acquired = 'ADV' 
                 if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
                     tag_acquired = 'X'
             if grammage == '4':
@@ -305,18 +368,27 @@ class HMM:
                     tag_acquired = 'VERB'
                 if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
                     tag_acquired = 'ADJ'
+                #if (re.search(final_dictionary['ADV'][0], sequence[0][0]) or re.search(final_dictionary['ADV'][1], sequence[0][0])):
+                    #tag_acquired = 'ADV'
+                #if (re.search(final_dictionary['PRON'][0], sequence[0][0]) or re.search(final_dictionary['PRON'][1], sequence[0][0])):
+                    #tag_acquired = 'PRON'
                 if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
                     tag_acquired = 'X'
             if grammage == 'double_3_and_4':
                 if (re.search(four_gram_dictionary['VERB'][0], sequence[0][0]) or re.search(four_gram_dictionary['VERB'][1], sequence[0][0])):
                     tag_acquired = 'VERB'
                 if (re.search(three_gram_dictionary['ADJ'][0], sequence[0][0]) or re.search(three_gram_dictionary['ADJ'][1], sequence[0][0])):
-                    tag_acquired = 'ADJ'    
+                    tag_acquired = 'ADJ'
+                #if (re.search(three_gram_dictionary['ADV'][0], sequence[0][0]) or re.search(three_gram_dictionary['ADV'][1], sequence[0][0])):
+                    #tag_acquired = 'ADV'
+                #if (re.search(four_gram_dictionary['PRON'][0], sequence[0][0]) or re.search(four_gram_dictionary['PRON'][1], sequence[0][0])):
+                    #tag_acquired = 'PRON'                    
                 if (re.search(three_gram_dictionary['X'][0], sequence[0][0]) or re.search(three_gram_dictionary['X'][1], sequence[0][0])):
                     tag_acquired = 'X'
             if (tag_acquired == data[index][0][1]):
                 correct = correct + 1
                 correct_by_part.append(data[index][0][1])
+            true_pred_dataset.loc[index] = [data[index][0][1], tag_acquired]
             total = total + 1
             total_by_part.append(data[index][0][1])
         correct_by_part_fin = Counter(correct_by_part)
@@ -326,7 +398,32 @@ class HMM:
                 if correct_part == total_part:
                     print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
         print('Total accuracy score: ' + str(correct/total*100) + '%')
-
+        from sklearn.metrics import confusion_matrix
+        for pos in true_pred_dataset['pred'].unique().tolist():
+            this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
+            cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
+            print(f'Raw confusion matrix for {pos}.\n{cm}')
+            for index, row in this_pos_split.iterrows():
+                if (row['pred'] == row['true']):
+                    row['pred'] = 1
+                else:
+                    row['pred'] = 0
+                row['true'] = 1            
+            try:
+                tn, fp, fn, tp = confusion_matrix(this_pos_split['true'].astype('int'), this_pos_split['pred'].astype('int')).ravel()
+                print(f'Binarized confusion matrix for {pos}. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
+            except:
+                print(f'Unable to binarize confusion matrix for {pos}')
+        cm = confusion_matrix(true_pred_dataset['true'], true_pred_dataset['pred'])
+        print(f'Raw total confusion matrix.\n{cm}')        
+        for index, row in true_pred_dataset.iterrows():
+            if (row['pred'] == row['true']):
+                    row['pred'] = 1
+            else:
+                row['pred'] = 0
+            row['true'] = 1
+        tn, fp, fn, tp = confusion_matrix(true_pred_dataset['true'].astype('int'), true_pred_dataset['pred'].astype('int')).ravel()
+        print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
     
     def hybrid_accuracy_score_with_classification(self, data_test, data_train, folder, grammage):
         from collections import Counter
@@ -374,7 +471,8 @@ class HMM:
         correct = 0
         total = 0
         correct_by_part = []
-        total_by_part = []
+        total_by_part = []        
+        true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
         for index, sequence in enumerate(data_test):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_hmm = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
@@ -393,10 +491,12 @@ class HMM:
                 if (tag_final == data_test[index][0][1]):
                     correct = correct + 1
                     correct_by_part.append(data_test[index][0][1])
+                true_pred_dataset.loc[index] = [data_test[index][0][1], tag_final]
             else:
                 if (tag_hmm == data_test[index][0][1]):
                     correct = correct + 1
                     correct_by_part.append(data_test[index][0][1])
+                true_pred_dataset.loc[index] = [data_test[index][0][1], tag_hmm]
             total = total + 1
             total_by_part.append(data_test[index][0][1])
         correct_by_part_fin = Counter(correct_by_part)
@@ -406,6 +506,32 @@ class HMM:
                 if correct_part == total_part:
                     print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
         print('Total accuracy score: ' + str(correct/total*100) + '%')
+        from sklearn.metrics import confusion_matrix
+        for pos in true_pred_dataset['pred'].unique().tolist():
+            this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
+            cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
+            print(f'Raw confusion matrix for {pos}.\n{cm}')
+            for index, row in this_pos_split.iterrows():
+                if (row['pred'] == row['true']):
+                    row['pred'] = 1
+                else:
+                    row['pred'] = 0
+                row['true'] = 1            
+            try:
+                tn, fp, fn, tp = confusion_matrix(this_pos_split['true'].astype('int'), this_pos_split['pred'].astype('int')).ravel()
+                print(f'Binarized confusion matrix for {pos}. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
+            except:
+                print(f'Unable to binarize confusion matrix for {pos}')
+        cm = confusion_matrix(true_pred_dataset['true'], true_pred_dataset['pred'])
+        print(f'Raw total confusion matrix.\n{cm}')        
+        for index, row in true_pred_dataset.iterrows():
+            if (row['pred'] == row['true']):
+                    row['pred'] = 1
+            else:
+                row['pred'] = 0
+            row['true'] = 1
+        tn, fp, fn, tp = confusion_matrix(true_pred_dataset['true'].astype('int'), true_pred_dataset['pred'].astype('int')).ravel()
+        print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
 
 def get_data(filepath):
     raw_data = open(filepath, encoding='utf8').readlines()
