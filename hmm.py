@@ -13,6 +13,16 @@ import argparse
 from collections import Counter
 import pickle
 import json
+import pprint
+import treetaggerwrapper
+
+def tree_tag(data):
+    tagger = treetaggerwrapper.TreeTagger(TAGLANG='bg')
+    for index, sequence in enumerate(data):  
+        tags = tagger.tag_text(sequence[0][0])
+        tags2 = treetaggerwrapper.make_tags(tags)
+        tag_acquired = tags2[0].pos
+    
 
 def test_split(word, pos, join, grams):
     n_grams = []
@@ -615,6 +625,8 @@ def main(args):
             with open(args.folder + '\\hmm.pkl', 'rb') as inp:
                 predictor = pickle.load(inp)
                 predictor.hybrid_accuracy_score_with_classification(get_test_data(args.data), get_test_data(args.train_data), args.folder, args.grammage)
+        elif (args.method == 'tt'):
+            tree_tag(get_test_data(args.data))
         else:
             print('Wrong method!')
     elif (args.modus == 'prediction'):
