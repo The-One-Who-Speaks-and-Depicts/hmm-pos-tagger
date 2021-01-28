@@ -17,11 +17,86 @@ import pprint
 import treetaggerwrapper
 
 def tree_tag(data):
+    import pandas as pd
     tagger = treetaggerwrapper.TreeTagger(TAGLANG='bg')
+    correct = 0
+    total = 0
+    correct_by_part = []
+    total_by_part = []
+    true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
     for index, sequence in enumerate(data):  
         tags = tagger.tag_text(sequence[0][0])
         tags2 = treetaggerwrapper.make_tags(tags)
         tag_acquired = tags2[0].pos
+        if (tag_acquired.startswith('A') or tag_acquired.startswith('Mo') or tag_acquired.startswith('Md') or tag_acquired.startswith('My') or tag_acquired.startswith('H')):
+            tag_acquired = 'ADJ'
+        elif (tag_acquired.startswith('D')):
+            tag_acquired = 'ADV'
+        elif(tag_acquired.startswith('I')):
+            tag_acquired = 'INTJ'
+        elif (tag_acquired.startswith('Nc')):
+            tag_acquired = 'NOUN'
+        elif (tag_acquired.startswith('Np')):
+            tag_acquired = 'PROPN'
+        elif (tag_acquired.startswith('Vn') or tag_acquired.startswith('Vp')):
+            tag_acquired = 'VERB'
+        elif (tag_acquired.startswith('R')):
+            tag_acquired = 'ADP'
+        elif (tag_acquired.startswith('Vx') or tag_acquired.startswith('Vy') or tag_acquired.startswith('Vi')):
+            tag_acquired = 'AUX'
+        elif (tag_acquired.startswith('Cc') or tag_acquired.startswith('Cr') or tag_acquired.startswith('Cp')):
+            tag_acquired = 'CCONJ'
+        elif (tag_acquired.startswith('Ps')):
+            tag_acquired = 'DET'
+        elif (tag_acquired.startswith('Mc')):
+            tag_acquired = 'NUM'
+        elif (tag_acquired.startswith('T')):
+            tag_acquired = 'PART'
+        elif (tag_acquired.startswith('Pp') or tag_acquired.startswith('Pd') or tag_acquired.startswith('Pr') or tag_acquired.startswith('Pc') or tag_acquired.startswith('Pi') or tag_acquired.startswith('Pf') or tag_acquired.startswith('Pn')):
+            tag_acquired = 'PRON'
+        elif (tag_acquired.startswith('Cs')):
+            tag_acquired = 'SCONJ'
+        else:
+            tag_acquired = 'X'
+        if (tag_acquired == data[index][0][1]):
+            correct = correct + 1
+            correct_by_part.append(data[index][0][1])
+        total = total + 1
+        total_by_part.append(data[index][0][1])
+        true_pred_dataset.loc[index] = [data[index][0][1], tag_acquired]
+    correct_by_part_fin = Counter(correct_by_part)
+    total_by_part_fin = Counter(total_by_part)
+    for correct_part in correct_by_part_fin.keys():
+        for total_part in total_by_part_fin.keys():
+            if correct_part == total_part:
+                print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
+    print('Total accuracy score: ' + str(correct/total*100) + '%')
+    from sklearn.metrics import confusion_matrix
+    for pos in true_pred_dataset['pred'].unique().tolist():
+        this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
+        cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
+        print(f'Raw confusion matrix for {pos}.\n{cm}')
+        for index, row in this_pos_split.iterrows():
+            if (row['pred'] == row['true']):
+                row['pred'] = 1
+            else:
+                row['pred'] = 0
+            row['true'] = 1            
+        try:
+            tn, fp, fn, tp = confusion_matrix(this_pos_split['true'].astype('int'), this_pos_split['pred'].astype('int')).ravel()
+            print(f'Binarized confusion matrix for {pos}. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
+        except:
+            print(f'Unable to binarize confusion matrix for {pos}')
+    cm = confusion_matrix(true_pred_dataset['true'], true_pred_dataset['pred'])
+    print(f'Raw total confusion matrix.\n{cm}')        
+    for index, row in true_pred_dataset.iterrows():
+        if (row['pred'] == row['true']):
+            row['pred'] = 1
+        else:
+            row['pred'] = 0
+        row['true'] = 1
+    tn, fp, fn, tp = confusion_matrix(true_pred_dataset['true'].astype('int'), true_pred_dataset['pred'].astype('int')).ravel()
+    print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
     
 
 def test_split(word, pos, join, grams):
