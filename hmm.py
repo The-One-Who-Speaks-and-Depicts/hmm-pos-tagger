@@ -4,7 +4,6 @@ import os
 from random import shuffle
 from random import seed
 import numpy as np
-#import seaborn as sns; sns.set()
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 import itertools
@@ -13,11 +12,13 @@ import argparse
 from collections import Counter
 import pickle
 import json
-import pprint
 import treetaggerwrapper
+from sklearn.metrics import confusion_matrix
+import pandas as pd
+import re
+from sklearn.ensemble import ExtraTreesClassifier
 
 def tree_tag(data):
-    import pandas as pd
     tagger = treetaggerwrapper.TreeTagger(TAGLANG='bg')
     correct = 0
     total = 0
@@ -71,7 +72,6 @@ def tree_tag(data):
             if correct_part == total_part:
                 print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
     print('Total accuracy score: ' + str(correct/total*100) + '%')
-    from sklearn.metrics import confusion_matrix
     for pos in true_pred_dataset['pred'].unique().tolist():
         this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
         cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
@@ -119,8 +119,7 @@ def test_split(word, pos, join, grams):
             counter = counter + 1
     return n_grams
 
-def n_gram_train(filepath, grammage, folder):    
-    import pandas as pd
+def n_gram_train(filepath, grammage, folder): 
     dataset = pd.DataFrame(columns=['WORD', 'TAG'])
     raw_data = open(filepath, encoding='utf8').readlines()
     counter = 0   
@@ -130,7 +129,6 @@ def n_gram_train(filepath, grammage, folder):
         dataset.loc[counter] = [cols[1], cols[3]]
         counter = counter + 1
     names = dataset['TAG'].unique().tolist()
-    from collections import Counter
     final_dictionary = {}
     for name in names:
         clone = dataset[dataset['TAG'] == name]
@@ -147,7 +145,6 @@ def n_gram_train(filepath, grammage, folder):
         pickle.dump(final_dictionary, f, pickle.HIGHEST_PROTOCOL)
         
 def n_gram_test(data, folder, grammage):
-    import pandas as pd
     test_dataset = pd.DataFrame(columns=['WORD', 'TAG'])
     raw_data = open(data, encoding='utf8').readlines()
     counter = 0   
@@ -158,7 +155,6 @@ def n_gram_test(data, folder, grammage):
         counter = counter + 1
     with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
         final_dictionary = pickle.load(f)
-    import re
     correct = 0
     total = 0
     correct_by_part = []
@@ -195,7 +191,6 @@ def n_gram_test(data, folder, grammage):
             if correct_part == total_part:
                 print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')  
     print(f'Accuracy score: {correct/total*100}%')
-    from sklearn.metrics import confusion_matrix
     for pos in true_pred_dataset['pred'].unique().tolist():
         this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
         cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
@@ -340,7 +335,6 @@ class HMM:
     def predict(self, data, folder, grammage):
         with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
             final_dictionary = pickle.load(f)
-        import re
         predicted = []
         for index, sequence in enumerate(data):
             if is_frag(sequence[0][0]):
@@ -369,8 +363,6 @@ class HMM:
         return predicted
     
     def accuracy_score(self, data):
-        from collections import Counter
-        import pandas as pd
         correct = 0
         total = 0
         correct_by_part = []
@@ -392,7 +384,6 @@ class HMM:
                 if correct_part == total_part:
                     print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
         print('Total accuracy score: ' + str(correct/total*100) + '%')
-        from sklearn.metrics import confusion_matrix
         for pos in true_pred_dataset['pred'].unique().tolist():
             this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
             cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
@@ -420,7 +411,6 @@ class HMM:
         print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
     
     def hybrid_accuracy_score(self, data, folder, grammage):
-        from collections import Counter
         if grammage == 'double_3_and_4':
             with open(folder + "\\3grams.pkl", 'rb') as f:
                 three_gram_dictionary = pickle.load(f)
@@ -429,12 +419,10 @@ class HMM:
         else:
             with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
                 final_dictionary = pickle.load(f)
-        import re
         correct = 0
         total = 0
         correct_by_part = []
         total_by_part = []
-        import pandas as pd
         true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
         for index, sequence in enumerate(data):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
@@ -483,7 +471,6 @@ class HMM:
                 if correct_part == total_part:
                     print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
         print('Total accuracy score: ' + str(correct/total*100) + '%')
-        from sklearn.metrics import confusion_matrix
         for pos in true_pred_dataset['pred'].unique().tolist():
             this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
             cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
@@ -511,11 +498,8 @@ class HMM:
         print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
     
     def hybrid_accuracy_score_with_classification(self, data_test, data_train, folder, grammage):
-        from collections import Counter
         with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
             final_dictionary = pickle.load(f)
-        import re
-        import pandas as pd
         tags_gram = []
         tags_hmm = []
         tags_golden = []
@@ -549,8 +533,7 @@ class HMM:
         y = dataset.iloc[:,2]
         y = y.astype('int')
         X = dataset.iloc[:,:2]
-        X = np.array(X.values.tolist())
-        from sklearn.ensemble import ExtraTreesClassifier
+        X = np.array(X.values.tolist())        
         ETF = ExtraTreesClassifier(n_estimators=100, max_depth=2, random_state=0)
         ETF.fit(X, y)
         correct = 0
@@ -591,7 +574,6 @@ class HMM:
                 if correct_part == total_part:
                     print(f'Accuracy for {correct_part}: {correct_by_part_fin[correct_part]/total_by_part_fin[total_part]*100}%')
         print('Total accuracy score: ' + str(correct/total*100) + '%')
-        from sklearn.metrics import confusion_matrix
         for pos in true_pred_dataset['pred'].unique().tolist():
             this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
             cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
@@ -641,7 +623,6 @@ def get_test_data(filepath):
     return all_sequences
 
 def get_data_for_prediction(filepath):
-    import json
     all_sequences = [] 
     with open(filepath, encoding='utf8') as f:
         d = json.load(f)    
@@ -708,7 +689,6 @@ def main(args):
         with open(args.folder + '\\hmm.pkl', 'rb') as inp:
             predictor = pickle.load(inp)
             predictions = predictor.predict(get_data_for_prediction(args.data), args.folder, args.grammage)
-            import json
             with open(args.data, encoding='utf8') as f:
                 d = json.load(f)    
             for t in d["texts"]:
