@@ -18,6 +18,10 @@ import pandas as pd
 import re
 from sklearn.ensemble import ExtraTreesClassifier
 
+def tf_idf_n_gram(k, ngram_count, max_ngram_count, corpus_length, words_with_ngram_count):
+    return (k + (1 - k) * (ngram_count/max_ngram_count)) * (corpus_length/(1 + words_with_ngram_count))
+
+
 def tree_tag(data):
     tagger = treetaggerwrapper.TreeTagger(TAGLANG='bg')
     correct = 0
@@ -119,24 +123,30 @@ def test_split(word, pos, join, grams):
             counter = counter + 1
     return n_grams
 
-def n_gram_train(filepath, grammage, folder): 
+def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols): 
     dataset = pd.DataFrame(columns=['WORD', 'TAG'])
     raw_data = open(filepath, encoding='utf8').readlines()
     counter = 0   
     for instance in raw_data:
       if (instance[0] != "#" and instance.strip()):
         cols = instance.split('\t')
-        dataset.loc[counter] = [cols[1], cols[3]]
+        if (int(register_change) == 0):
+            dataset.loc[counter] = [cols[1], cols[3]]
+        else:
+            dataset.loc[counter] = [cols[1].lower(), cols[3]]
         counter = counter + 1
     names = dataset['TAG'].unique().tolist()
     final_dictionary = {}
+    start_end_symbols = int(start_end_symbols)
     for name in names:
         clone = dataset[dataset['TAG'] == name]
         n_grams = []
         for word in clone['WORD']:
+          if (start_end_symbols == 1): 
+            word = "#" + word + "#"
           for gram in test_split(word, "", 0, int(grammage)):
             n_grams.extend(gram)
-        cnt = Counter(n_grams)
+        cnt = Counter(n_grams)        
         grams = []
         for gram in cnt.most_common(2):
           grams.append(gram[0])
@@ -144,14 +154,21 @@ def n_gram_train(filepath, grammage, folder):
     with open(folder + "\\" + grammage + 'grams.pkl', 'wb+') as f:
         pickle.dump(final_dictionary, f, pickle.HIGHEST_PROTOCOL)
         
-def n_gram_test(data, folder, grammage):
+def n_gram_test(data, folder, grammage, register_change, start_end_symbols):
     test_dataset = pd.DataFrame(columns=['WORD', 'TAG'])
     raw_data = open(data, encoding='utf8').readlines()
     counter = 0   
+    start_end_symbols = int(start_end_symbols)
     for instance in raw_data:
       if (instance[0] != "#" and instance.strip()):
         cols = instance.split('\t')
-        test_dataset.loc[counter] = [cols[1], cols[3]]
+        if (int(register_change) == 0):
+            test_dataset.loc[counter] = [cols[1], cols[3]]
+        else:
+            if (start_end_symbols == 0):
+                test_dataset.loc[counter] = [cols[1].lower(), cols[3]]
+            else:
+                test_dataset.loc[counter] = ["#" + cols[1].lower() + "#", cols[3]]
         counter = counter + 1
     with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
         final_dictionary = pickle.load(f)
@@ -410,7 +427,7 @@ class HMM:
         tn, fp, fn, tp = confusion_matrix(true_pred_dataset['true'].astype('int'), true_pred_dataset['pred'].astype('int')).ravel()
         print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
     
-    def hybrid_accuracy_score(self, data, folder, grammage):
+    def hybrid_accuracy_score(self, data, folder, grammage, register_change):
         if grammage == 'double_3_and_4':
             with open(folder + "\\3grams.pkl", 'rb') as f:
                 three_gram_dictionary = pickle.load(f)
@@ -427,36 +444,40 @@ class HMM:
         for index, sequence in enumerate(data):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+            if (int(register_change) != 0):
+                analyzed_token = sequence[0][0].lower()
+            else:
+                analyzed_token = sequence[0][0]
             if grammage == '3':
-                if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
+                if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
                     tag_acquired = 'VERB'
-                if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
+                if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
                     tag_acquired = 'ADJ'
-                #if (re.search(final_dictionary['ADV'][0], sequence[0][0]) or re.search(final_dictionary['ADV'][1], sequence[0][0])):
+                #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
                     #tag_acquired = 'ADV' 
-                if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
+                if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
                     tag_acquired = 'X'
             if grammage == '4':
-                if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
+                if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
                     tag_acquired = 'VERB'
-                if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
+                if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
                     tag_acquired = 'ADJ'
-                #if (re.search(final_dictionary['ADV'][0], sequence[0][0]) or re.search(final_dictionary['ADV'][1], sequence[0][0])):
+                #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
                     #tag_acquired = 'ADV'
-                #if (re.search(final_dictionary['PRON'][0], sequence[0][0]) or re.search(final_dictionary['PRON'][1], sequence[0][0])):
+                #if (re.search(final_dictionary['PRON'][0], analyzed_token) or re.search(final_dictionary['PRON'][1], analyzed_token)):
                     #tag_acquired = 'PRON'
-                if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
+                if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
                     tag_acquired = 'X'
             if grammage == 'double_3_and_4':
-                if (re.search(four_gram_dictionary['VERB'][0], sequence[0][0]) or re.search(four_gram_dictionary['VERB'][1], sequence[0][0])):
+                if (re.search(four_gram_dictionary['VERB'][0], analyzed_token) or re.search(four_gram_dictionary['VERB'][1], analyzed_token)):
                     tag_acquired = 'VERB'
-                if (re.search(three_gram_dictionary['ADJ'][0], sequence[0][0]) or re.search(three_gram_dictionary['ADJ'][1], sequence[0][0])):
+                if (re.search(three_gram_dictionary['ADJ'][0], analyzed_token) or re.search(three_gram_dictionary['ADJ'][1], analyzed_token)):
                     tag_acquired = 'ADJ'
-                #if (re.search(three_gram_dictionary['ADV'][0], sequence[0][0]) or re.search(three_gram_dictionary['ADV'][1], sequence[0][0])):
+                #if (re.search(three_gram_dictionary['ADV'][0], analyzed_token) or re.search(three_gram_dictionary['ADV'][1], analyzed_token)):
                     #tag_acquired = 'ADV'
-                #if (re.search(four_gram_dictionary['PRON'][0], sequence[0][0]) or re.search(four_gram_dictionary['PRON'][1], sequence[0][0])):
+                #if (re.search(four_gram_dictionary['PRON'][0], analyzed_token) or re.search(four_gram_dictionary['PRON'][1], analyzed_token)):
                     #tag_acquired = 'PRON'                    
-                if (re.search(three_gram_dictionary['X'][0], sequence[0][0]) or re.search(three_gram_dictionary['X'][1], sequence[0][0])):
+                if (re.search(three_gram_dictionary['X'][0], analyzed_token) or re.search(three_gram_dictionary['X'][1], analyzed_token)):
                     tag_acquired = 'X'
             if (tag_acquired == data[index][0][1]):
                 correct = correct + 1
@@ -497,7 +518,7 @@ class HMM:
         tn, fp, fn, tp = confusion_matrix(true_pred_dataset['true'].astype('int'), true_pred_dataset['pred'].astype('int')).ravel()
         print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
     
-    def hybrid_accuracy_score_with_classification(self, data_test, data_train, folder, grammage):
+    def hybrid_accuracy_score_with_classification(self, data_test, data_train, folder, grammage, register_change):
         with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
             final_dictionary = pickle.load(f)
         tags_gram = []
@@ -507,13 +528,17 @@ class HMM:
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_hmm = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
             tag_changed = False
-            if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
+            if (int(register_change) == 0):
+                analyzed_token = sequence[0][0]
+            else:
+                analyzed_token = sequence[0][0].lower()
+            if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
                 tag_gram = 'ADJ'
                 tag_changed = True
-            if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
+            if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
                 tag_gram = 'VERB'
                 tag_changed = True
-            if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
+            if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
                 tag_gram = 'X'
                 tag_changed = True
             if not tag_changed:
@@ -545,13 +570,17 @@ class HMM:
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_hmm = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
             tag_changed = False
-            if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
+            if (int(register_change) == 0):
+                analyzed_token = sequence[0][0]
+            else:
+                analyzed_token = sequence[0][0].lower()
+            if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
                 tag_gram = 'ADJ'
                 tag_changed = True
-            if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
+            if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
                 tag_gram = 'VERB'
                 tag_changed = True
-            if (re.search(final_dictionary['X'][0], sequence[0][0]) or re.search(final_dictionary['X'][1], sequence[0][0])):
+            if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
                 tag_gram = 'X'
                 tag_changed = True
             if tag_changed:
@@ -662,7 +691,7 @@ def main(args):
                 pickle.dump(hmm, output, pickle.HIGHEST_PROTOCOL)
                 print("Way to file: " + args.folder + "\\hmm.pkl")
         elif (args.method == 'grams'):
-            n_gram_train(args.data, args.grammage, args.folder)
+            n_gram_train(args.data, args.grammage, args.folder, args.register_change, args.start_end_symbols)
             print("Way to file: " + args.folder + "\\" + args.grammage + "grams.pkl")
         else:
             print('Wrong method!')
@@ -672,15 +701,15 @@ def main(args):
                 predictor = pickle.load(inp)
                 predictor.accuracy_score(get_test_data(args.data))
         elif (args.method == 'grams'):
-            n_gram_test(args.data, args.folder, args.grammage)
+            n_gram_test(args.data, args.folder, args.grammage, args.register_change, args.start_end_symbols)
         elif (args.method == 'hmmg'):
             with open(args.folder + '\\hmm.pkl', 'rb') as inp:
                 predictor = pickle.load(inp)
-                predictor.hybrid_accuracy_score(get_test_data(args.data), args.folder, args.grammage)
+                predictor.hybrid_accuracy_score(get_test_data(args.data), args.folder, args.grammage, args.register_change)
         elif (args.method == 'hmmc'):
             with open(args.folder + '\\hmm.pkl', 'rb') as inp:
                 predictor = pickle.load(inp)
-                predictor.hybrid_accuracy_score_with_classification(get_test_data(args.data), get_test_data(args.train_data), args.folder, args.grammage)
+                predictor.hybrid_accuracy_score_with_classification(get_test_data(args.data), get_test_data(args.train_data), args.folder, args.grammage, args.register_change)
         elif (args.method == 'tt'):
             tree_tag(get_test_data(args.data))
         else:
@@ -715,6 +744,8 @@ if __name__ == '__main__':
     parser.add_argument('--modus', default='training')
     parser.add_argument('--method', default='hmm')
     parser.add_argument('--grammage', default='4')
+    parser.add_argument('--register_change', default='0')
+    parser.add_argument('--start_end_symbols', default='0')
 
     args = parser.parse_args()
     main(args)
