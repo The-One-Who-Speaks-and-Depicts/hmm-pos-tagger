@@ -17,9 +17,10 @@ from sklearn.metrics import confusion_matrix
 import pandas as pd
 import re
 from sklearn.ensemble import ExtraTreesClassifier
+import math
 
 def tf_idf_n_gram(k, ngram_count, max_ngram_count, corpus_length, words_with_ngram_count):
-    return (k + (1 - k) * (ngram_count/max_ngram_count)) * (corpus_length/(1 + words_with_ngram_count))
+    return (k + (1 - k) * (ngram_count/max_ngram_count)) * (math.log(corpus_length/(1 + words_with_ngram_count)))
 
 
 def tree_tag(data):
@@ -123,7 +124,8 @@ def test_split(word, pos, join, grams):
             counter = counter + 1
     return n_grams
 
-def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols): 
+def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols, weighed, tf_idf_coefficient):
+    tf_idf_coefficient = float(tf_idf_coefficient)
     dataset = pd.DataFrame(columns=['WORD', 'TAG'])
     raw_data = open(filepath, encoding='utf8').readlines()
     counter = 0   
@@ -138,18 +140,48 @@ def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols)
     names = dataset['TAG'].unique().tolist()
     final_dictionary = {}
     start_end_symbols = int(start_end_symbols)
+    if (weighed == 1):
+        corpus_length = dataset.shape[0]
+        ngram_in_word_dictionary = {}
+        words_with_ngram_dictionary = {}
     for name in names:
         clone = dataset[dataset['TAG'] == name]
         n_grams = []
         for word in clone['WORD']:
           if (start_end_symbols == 1): 
             word = "#" + word + "#"
+          if (weighed == 1):
+            ngrams_of_word_dictionary = {}
           for gram in test_split(word, "", 0, int(grammage)):
-            n_grams.extend(gram)
-        cnt = Counter(n_grams)        
+            n_grams.extend(gram)            
+            if (weighed == 1):
+                if gram[0] in words_with_ngram_dictionary.keys():
+                    words_with_ngram_dictionary[gram[0]].append(word)
+                else:
+                    words_with_ngram_dictionary[gram[0]] = []
+                    words_with_ngram_dictionary[gram[0]].append(word)
+                if gram[0] in ngrams_of_word_dictionary.keys():
+                    ngrams_of_word_dictionary[gram[0]] += 1
+                else:
+                    ngrams_of_word_dictionary[gram[0]] = 1
+          for gram in ngrams_of_word_dictionary.keys():
+            if gram in ngram_in_word_dictionary.keys():
+                if (ngrams_of_word_dictionary[gram] > ngram_in_word_dictionary[gram]):
+                    ngram_in_word_dictionary[gram] = ngrams_of_word_dictionary[gram]
+            else:
+                ngram_in_word_dictionary[gram] = ngrams_of_word_dictionary[gram]
+        cnt = Counter(n_grams)
         grams = []
-        for gram in cnt.most_common(2):
-          grams.append(gram[0])
+        if (weighed == 0):
+            for gram in cnt.most_common(2):
+              grams.append(gram[0])            
+        else:
+            weighed_grams = {}
+            for gram in cnt.most_common():
+                weighed_grams[gram[0]] = tf_idf_n_gram(tf_idf_coefficient, gram[1], ngram_in_word_dictionary[gram[0]], corpus_length, len(words_with_ngram_dictionary[gram[0]]))
+            weighed_grams = dict(reversed(sorted(weighed_grams.items(), key=lambda item: item[1])))
+            for key in list(weighed_grams.keys())[0:2]:
+                grams.append(key)
         final_dictionary[name] = grams
     with open(folder + "\\" + grammage + 'grams.pkl', 'wb+') as f:
         pickle.dump(final_dictionary, f, pickle.HIGHEST_PROTOCOL)
@@ -691,7 +723,7 @@ def main(args):
                 pickle.dump(hmm, output, pickle.HIGHEST_PROTOCOL)
                 print("Way to file: " + args.folder + "\\hmm.pkl")
         elif (args.method == 'grams'):
-            n_gram_train(args.data, args.grammage, args.folder, args.register_change, args.start_end_symbols)
+            n_gram_train(args.data, args.grammage, args.folder, args.register_change, args.start_end_symbols, int(args.weighed), args.tf_idf_coefficient)
             print("Way to file: " + args.folder + "\\" + args.grammage + "grams.pkl")
         else:
             print('Wrong method!')
@@ -743,9 +775,11 @@ if __name__ == '__main__':
     parser.add_argument('--folder', default=os.path.dirname(os.path.realpath(__file__)))
     parser.add_argument('--modus', default='training')
     parser.add_argument('--method', default='hmm')
-    parser.add_argument('--grammage', default='4')
-    parser.add_argument('--register_change', default='0')
-    parser.add_argument('--start_end_symbols', default='0')
+    parser.add_argument('--grammage', default='3')
+    parser.add_argument('--register_change', default='1')
+    parser.add_argument('--start_end_symbols', default='1')
+    parser.add_argument('--tf_idf_coefficient', '-k', default='0.5')
+    parser.add_argument('--weighed', '-w', default='0')
 
     args = parser.parse_args()
     main(args)
