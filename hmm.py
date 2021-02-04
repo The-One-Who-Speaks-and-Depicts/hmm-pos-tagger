@@ -104,7 +104,7 @@ def tree_tag(data):
     print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
     
 
-def test_split(word, pos, join, grams):
+def test_split(word, pos, join, grams, double):
     n_grams = []
     if ((grams == 0) or (len(word) <= grams)):
         if (join == 1):
@@ -115,8 +115,34 @@ def test_split(word, pos, join, grams):
         counter = 0
         while ((len(word) - counter) >= grams):
             resulting_word = ''
+            repetitions = 0
             for i in range (counter, counter + grams):
-                resulting_word += word[i]
+                if (double == 1):
+                    if ((counter > 0) and (i == counter) and ((word[i] == 'о') and (word[i + 1] == 'у'))):
+                        resulting_word += word[i - 1]
+                        resulting_word += word[i]
+                    elif ((counter + i < len(word)) and (i == counter + grams - 1) and ((word[i] == 'о') and (word[i + 1] == 'у'))):
+                        resulting_word += word[i]
+                        resulting_word += word[i + 1]
+                    elif ((counter + i < len(word)) and ((i > counter) and (i < counter + grams - 1)) and ((word[i] == 'о') and (word[i + 1] == 'у')) and (counter + grams + repetitions < len(word))):
+                        resulting_word += word[i]                        
+                        repetitions = repetitions + 1
+                    elif ((counter > 0) and (i == counter) and (word[i] == word [i - 1])):
+                        resulting_word += word[i - 1]
+                        resulting_word += word[i]
+                    elif ((counter + i < len(word)) and (i == counter + grams - 1) and (word[i] == word[i + 1])):
+                        resulting_word += word[i]
+                        resulting_word += word[i + 1]
+                    elif ((counter + i < len(word)) and ((i > counter) and (i < counter + grams - 1)) and (word[i] == word[i + 1]) and (counter + grams + repetitions < len(word))):
+                        resulting_word += word[i]                        
+                        repetitions = repetitions + 1
+                    else:
+                        resulting_word += word[i]
+                else:
+                    resulting_word += word[i]
+            if (repetitions > 0):
+                for i in range(counter + grams, counter + grams + repetitions):
+                    resulting_word += word[i]
             if (join == 0):
                 n_grams.append([resulting_word])
             else:
@@ -124,7 +150,7 @@ def test_split(word, pos, join, grams):
             counter = counter + 1
     return n_grams
 
-def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols, weighed, tf_idf_coefficient):
+def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols, weighed, tf_idf_coefficient, length, double):
     tf_idf_coefficient = float(tf_idf_coefficient)
     dataset = pd.DataFrame(columns=['WORD', 'TAG'])
     raw_data = open(filepath, encoding='utf8').readlines()
@@ -140,6 +166,8 @@ def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols,
     names = dataset['TAG'].unique().tolist()
     final_dictionary = {}
     start_end_symbols = int(start_end_symbols)
+    if (length == 1):
+        by_length_dictionary = {}
     if (weighed == 1):
         corpus_length = dataset.shape[0]
         ngram_in_word_dictionary = {}
@@ -147,12 +175,16 @@ def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols,
     for name in names:
         clone = dataset[dataset['TAG'] == name]
         n_grams = []
-        for word in clone['WORD']:
+        if (length == 1):
+            words_lengths = []
+        for word in clone['WORD']:          
           if (start_end_symbols == 1): 
             word = "#" + word + "#"
+          if (length == 1):
+            words_lengths.append(len(word))
           if (weighed == 1):
             ngrams_of_word_dictionary = {}
-          for gram in test_split(word, "", 0, int(grammage)):
+          for gram in test_split(word, "", 0, int(grammage), double):
             n_grams.extend(gram)            
             if (weighed == 1):
                 if gram[0] in words_with_ngram_dictionary.keys():
@@ -164,12 +196,15 @@ def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols,
                     ngrams_of_word_dictionary[gram[0]] += 1
                 else:
                     ngrams_of_word_dictionary[gram[0]] = 1
-          for gram in ngrams_of_word_dictionary.keys():
-            if gram in ngram_in_word_dictionary.keys():
-                if (ngrams_of_word_dictionary[gram] > ngram_in_word_dictionary[gram]):
+          if (weighed == 1):
+              for gram in ngrams_of_word_dictionary.keys():
+                if gram in ngram_in_word_dictionary.keys():
+                    if (ngrams_of_word_dictionary[gram] > ngram_in_word_dictionary[gram]):
+                        ngram_in_word_dictionary[gram] = ngrams_of_word_dictionary[gram]
+                else:
                     ngram_in_word_dictionary[gram] = ngrams_of_word_dictionary[gram]
-            else:
-                ngram_in_word_dictionary[gram] = ngrams_of_word_dictionary[gram]
+          if (length == 1):
+            by_length_dictionary[name] = round(np.mean(words_lengths))
         cnt = Counter(n_grams)
         grams = []
         if (weighed == 0):
@@ -182,11 +217,15 @@ def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols,
             weighed_grams = dict(reversed(sorted(weighed_grams.items(), key=lambda item: item[1])))
             for key in list(weighed_grams.keys())[0:2]:
                 grams.append(key)
-        final_dictionary[name] = grams
+        final_dictionary[name] = grams        
     with open(folder + "\\" + grammage + 'grams.pkl', 'wb+') as f:
         pickle.dump(final_dictionary, f, pickle.HIGHEST_PROTOCOL)
+    if (length == 1):
+        with open(folder + "\\length_" + grammage + 'grams.pkl', 'wb+') as f:
+            pickle.dump(by_length_dictionary, f, pickle.HIGHEST_PROTOCOL)
         
-def n_gram_test(data, folder, grammage, register_change, start_end_symbols):
+        
+def n_gram_test(data, folder, grammage, register_change, start_end_symbols, length):
     test_dataset = pd.DataFrame(columns=['WORD', 'TAG'])
     raw_data = open(data, encoding='utf8').readlines()
     counter = 0   
@@ -204,6 +243,9 @@ def n_gram_test(data, folder, grammage, register_change, start_end_symbols):
         counter = counter + 1
     with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
         final_dictionary = pickle.load(f)
+    if (length == 1):
+        with open(folder + "\\length_" + grammage + 'grams.pkl', 'rb') as f:
+            by_length_dictionary = pickle.load(f)
     correct = 0
     total = 0
     correct_by_part = []
@@ -226,6 +268,28 @@ def n_gram_test(data, folder, grammage, register_change, start_end_symbols):
           key_found = True
           true_pred_dataset.loc[index] = [row['TAG'], key]
           break
+        elif length == 1:
+            if len(row['WORD']) == by_length_dictionary['CCONJ']:
+                if row['TAG'] == 'CCONJ':
+                    correct = correct + 1
+                    correct_by_part.append(key)
+                key_found = True
+                true_pred_dataset.loc[index] = [row['TAG'], key]
+                break
+            elif len(row['WORD']) == by_length_dictionary['ADP']:
+                if row['TAG'] == 'ADP':
+                    correct = correct + 1
+                    correct_by_part.append(key)
+                key_found = True
+                true_pred_dataset.loc[index] = [row['TAG'], key]
+                break
+            elif len(row['WORD']) == by_length_dictionary['VERB']:
+                if row['TAG'] == 'VERB':
+                    correct = correct + 1
+                    correct_by_part.append(key)
+                key_found = True
+                true_pred_dataset.loc[index] = [row['TAG'], key]
+                break
       if not key_found:
         if row['TAG'] == 'VERB':
            correct = correct + 1
@@ -459,7 +523,9 @@ class HMM:
         tn, fp, fn, tp = confusion_matrix(true_pred_dataset['true'].astype('int'), true_pred_dataset['pred'].astype('int')).ravel()
         print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
     
-    def hybrid_accuracy_score(self, data, folder, grammage, register_change):
+    def hybrid_accuracy_score(self, data, folder, grammage, register_change, start_end_symbols):
+        register_change = int(register_change)
+        start_end_symbols = int(start_end_symbols)
         if grammage == 'double_3_and_4':
             with open(folder + "\\3grams.pkl", 'rb') as f:
                 three_gram_dictionary = pickle.load(f)
@@ -476,11 +542,29 @@ class HMM:
         for index, sequence in enumerate(data):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
-            if (int(register_change) != 0):
-                analyzed_token = sequence[0][0].lower()
-            else:
+            if (register_change == 0):
                 analyzed_token = sequence[0][0]
-            if grammage == '3':
+            else:
+                if (start_end_symbols == 0):
+                    analyzed_token = sequence[0][0].lower()
+                else:
+                    analyzed_token = "#" + sequence[0][0].lower() + "#"
+            if ((grammage == '3') and (register_change == 1) and (start_end_symbols == 1)) :
+                if (re.search(final_dictionary['AUX'][0], analyzed_token) or re.search(final_dictionary['AUX'][1], analyzed_token)):
+                    tag_acquired = 'AUX'
+                if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
+                    tag_acquired = 'X'
+                if (re.search(final_dictionary['SCONJ'][0], analyzed_token) or re.search(final_dictionary['SCONJ'][1], analyzed_token)):
+                    tag_acquired = 'SCONJ'
+                if (re.search(final_dictionary['PROPN'][0], analyzed_token) or re.search(final_dictionary['PROPN'][1], analyzed_token)):
+                    tag_acquired = 'PROPN'
+                if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
+                    tag_acquired = 'ADJ'
+                #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
+                    #tag_acquired = 'ADV' 
+                if (re.search(final_dictionary['PRON'][0], analyzed_token) or re.search(final_dictionary['PRON'][1], analyzed_token)):
+                    tag_acquired = 'PRON'
+            elif ((grammage == '3') and ((register_change == 1) and (start_end_symbols == 0))):
                 if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
                     tag_acquired = 'VERB'
                 if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
@@ -489,7 +573,16 @@ class HMM:
                     #tag_acquired = 'ADV' 
                 if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
                     tag_acquired = 'X'
-            if grammage == '4':
+            elif ((grammage == '3') and ((register_change == 0) or (start_end_symbols == 0))):
+                if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
+                    tag_acquired = 'VERB'
+                if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
+                    tag_acquired = 'ADJ'
+                #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
+                    #tag_acquired = 'ADV' 
+                if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
+                    tag_acquired = 'X'
+            elif grammage == '4':
                 if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
                     tag_acquired = 'VERB'
                 if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
@@ -500,7 +593,7 @@ class HMM:
                     #tag_acquired = 'PRON'
                 if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
                     tag_acquired = 'X'
-            if grammage == 'double_3_and_4':
+            elif grammage == 'double_3_and_4':
                 if (re.search(four_gram_dictionary['VERB'][0], analyzed_token) or re.search(four_gram_dictionary['VERB'][1], analyzed_token)):
                     tag_acquired = 'VERB'
                 if (re.search(three_gram_dictionary['ADJ'][0], analyzed_token) or re.search(three_gram_dictionary['ADJ'][1], analyzed_token)):
@@ -723,7 +816,7 @@ def main(args):
                 pickle.dump(hmm, output, pickle.HIGHEST_PROTOCOL)
                 print("Way to file: " + args.folder + "\\hmm.pkl")
         elif (args.method == 'grams'):
-            n_gram_train(args.data, args.grammage, args.folder, args.register_change, args.start_end_symbols, int(args.weighed), args.tf_idf_coefficient)
+            n_gram_train(args.data, args.grammage, args.folder, args.register_change, args.start_end_symbols, int(args.weighed), args.tf_idf_coefficient, int(args.length), int(args.double))
             print("Way to file: " + args.folder + "\\" + args.grammage + "grams.pkl")
         else:
             print('Wrong method!')
@@ -733,11 +826,11 @@ def main(args):
                 predictor = pickle.load(inp)
                 predictor.accuracy_score(get_test_data(args.data))
         elif (args.method == 'grams'):
-            n_gram_test(args.data, args.folder, args.grammage, args.register_change, args.start_end_symbols)
+            n_gram_test(args.data, args.folder, args.grammage, args.register_change, args.start_end_symbols, int(args.length))
         elif (args.method == 'hmmg'):
             with open(args.folder + '\\hmm.pkl', 'rb') as inp:
                 predictor = pickle.load(inp)
-                predictor.hybrid_accuracy_score(get_test_data(args.data), args.folder, args.grammage, args.register_change)
+                predictor.hybrid_accuracy_score(get_test_data(args.data), args.folder, args.grammage, args.register_change, args.start_end_symbols)
         elif (args.method == 'hmmc'):
             with open(args.folder + '\\hmm.pkl', 'rb') as inp:
                 predictor = pickle.load(inp)
@@ -777,9 +870,11 @@ if __name__ == '__main__':
     parser.add_argument('--method', default='hmm')
     parser.add_argument('--grammage', default='3')
     parser.add_argument('--register_change', default='1')
-    parser.add_argument('--start_end_symbols', default='1')
+    parser.add_argument('--start_end_symbols', default='0')
     parser.add_argument('--tf_idf_coefficient', '-k', default='0.5')
     parser.add_argument('--weighed', '-w', default='0')
+    parser.add_argument('--length', '-l', default='0')
+    parser.add_argument('--double', '-d', default='0')
 
     args = parser.parse_args()
     main(args)
