@@ -16,7 +16,7 @@ import treetaggerwrapper
 from sklearn.metrics import confusion_matrix
 import pandas as pd
 import re
-from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import ExtraTreesRegressor
 import math
 
 def tf_idf_n_gram(k, ngram_count, max_ngram_count, corpus_length, words_with_ngram_count):
@@ -475,6 +475,41 @@ class HMM:
                 predicted.append(sequence[0][2] + '\t' + tag_acquired)
         return predicted
     
+    def competitive_predict(self, data, folder, grammage, register_change):
+        with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
+            final_dictionary = pickle.load(f)
+        comparison_dataset = pd.DataFrame(columns=['TOKEN', 'HMM', 'ENHANCED'])
+        for index, sequence in enumerate(data):
+            if is_frag(sequence[0][0]):
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_acquired = 'FRAG'
+                comparison_dataset.loc[index] = [sequence[0][0], tag_acquired, tag_acquired]
+            elif is_punct(sequence[0][0]):
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_acquired = 'PUNCT'
+                comparison_dataset.loc[index] = [sequence[0][0], tag_acquired, tag_acquired]
+            elif is_digit(sequence[0][0]):
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_acquired = 'DIGIT'
+                comparison_dataset.loc[index] = [sequence[0][0], tag_acquired, tag_acquired]
+            else:
+                predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_hmm = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+                if (register_change == 1):
+                    analyzed_token = sequence[0][0].lower()
+                else:
+                    analyzed_token = sequence[0][0]
+                tag_acquired = tag_hmm
+                if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
+                    tag_acquired = 'ADJ'
+                if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
+                    tag_acquired = 'VERB'
+                if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
+                    tag_acquired = 'X'
+                comparison_dataset.loc[index] = [sequence[0][0], tag_hmm, tag_acquired]
+        return comparison_dataset
+        
     def accuracy_score(self, data):
         correct = 0
         total = 0
@@ -539,9 +574,14 @@ class HMM:
         correct_by_part = []
         total_by_part = []
         true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
+        overall_positions = []
+        verb_positions = []
+        adj_positions = []
+        x_positions = []
         for index, sequence in enumerate(data):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+            found_with_ngram = False
             if (register_change == 0):
                 analyzed_token = sequence[0][0]
             else:
@@ -567,13 +607,16 @@ class HMM:
             elif ((grammage == '3') and ((register_change == 1) and (start_end_symbols == 0))):
                 if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
                     tag_acquired = 'VERB'
+                    found_with_ngram = True
                 if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
                     tag_acquired = 'ADJ'
+                    found_with_ngram = True
                 #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
                     #tag_acquired = 'ADV' 
                 if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
                     tag_acquired = 'X'
-            elif ((grammage == '3') and ((register_change == 0) or (start_end_symbols == 0))):
+                    found_with_ngram = True
+            elif ((grammage == '3') and ((register_change == 0) and (start_end_symbols == 0))):
                 if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
                     tag_acquired = 'VERB'
                 if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
@@ -607,6 +650,28 @@ class HMM:
             if (tag_acquired == data[index][0][1]):
                 correct = correct + 1
                 correct_by_part.append(data[index][0][1])
+                if found_with_ngram:
+                    if tag_acquired == 'VERB':
+                        if (analyzed_token.find(final_dictionary['VERB'][0]) != -1):
+                            verb_positions.append(analyzed_token.find(final_dictionary['VERB'][0]))
+                            overall_positions.append(analyzed_token.find(final_dictionary['VERB'][0]))
+                        else:
+                            verb_positions.append(analyzed_token.find(final_dictionary['VERB'][1]))
+                            overall_positions.append(analyzed_token.find(final_dictionary['VERB'][1]))
+                    elif tag_acquired == 'ADJ':
+                        if (analyzed_token.find(final_dictionary['ADJ'][0]) != -1):
+                            adj_positions.append(analyzed_token.find(final_dictionary['ADJ'][0]))
+                            overall_positions.append(analyzed_token.find(final_dictionary['ADJ'][0]))
+                        else:
+                            adj_positions.append(analyzed_token.find(final_dictionary['ADJ'][1]))
+                            overall_positions.append(analyzed_token.find(final_dictionary['ADJ'][1]))
+                    elif tag_acquired == 'X':
+                        if (analyzed_token.find(final_dictionary['X'][0]) != -1):
+                            x_positions.append(analyzed_token.find(final_dictionary['X'][0]))
+                            overall_positions.append(analyzed_token.find(final_dictionary['X'][0]))
+                        else:
+                            x_positions.append(analyzed_token.find(final_dictionary['X'][1]))
+                            overall_positions.append(analyzed_token.find(final_dictionary['X'][1]))
             true_pred_dataset.loc[index] = [data[index][0][1], tag_acquired]
             total = total + 1
             total_by_part.append(data[index][0][1])
@@ -642,6 +707,11 @@ class HMM:
             row['true'] = 1
         tn, fp, fn, tp = confusion_matrix(true_pred_dataset['true'].astype('int'), true_pred_dataset['pred'].astype('int')).ravel()
         print(f'Binarized total confusion matrix. True negatives: {tn}, false positives: {fp}, false negatives: {fn}, true positives: {tp}')
+        verb_positions_mean = np.mean(verb_positions)
+        adj_positions_mean = np.mean(adj_positions)
+        x_positions_mean = np.mean(x_positions)
+        overall_positions_mean = np.mean(overall_positions)
+        print(f'Adjective definitive ngram mean position: {adj_positions_mean}\nVerb definitive ngram mean position: {verb_positions_mean}\nX definitive ngram mean position: {x_positions_mean}\nDefinitive ngram mean position:{overall_positions_mean}')
     
     def hybrid_accuracy_score_with_classification(self, data_test, data_train, folder, grammage, register_change):
         with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
@@ -657,15 +727,10 @@ class HMM:
                 analyzed_token = sequence[0][0]
             else:
                 analyzed_token = sequence[0][0].lower()
-            if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
-                tag_gram = 'ADJ'
-                tag_changed = True
-            if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
-                tag_gram = 'VERB'
-                tag_changed = True
-            if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
-                tag_gram = 'X'
-                tag_changed = True
+            for name in final_dictionary.keys():
+                if (re.search(final_dictionary[name][0], analyzed_token) or re.search(final_dictionary[name][1], analyzed_token)):
+                    tag_gram = name
+                    tag_changed = True
             if not tag_changed:
                 tag_gram = tag_hmm
             tags_gram.append(tag_gram)
@@ -684,8 +749,8 @@ class HMM:
         y = y.astype('int')
         X = dataset.iloc[:,:2]
         X = np.array(X.values.tolist())        
-        ETF = ExtraTreesClassifier(n_estimators=100, max_depth=2, random_state=0)
-        ETF.fit(X, y)
+        ETR = ExtraTreesRegressor(n_estimators=200, max_depth=8, random_state=0)
+        ETR.fit(X, y)
         correct = 0
         total = 0
         correct_by_part = []
@@ -699,17 +764,12 @@ class HMM:
                 analyzed_token = sequence[0][0]
             else:
                 analyzed_token = sequence[0][0].lower()
-            if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
-                tag_gram = 'ADJ'
-                tag_changed = True
-            if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
-                tag_gram = 'VERB'
-                tag_changed = True
-            if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
-                tag_gram = 'X'
-                tag_changed = True
+            for name in final_dictionary.keys():
+                if (re.search(final_dictionary[name][0], analyzed_token) or re.search(final_dictionary[name][1], analyzed_token)):
+                    tag_gram = name
+                    tag_changed = True            
             if tag_changed:
-                tag_final = inverted_tags[ETF.predict(np.array([[quantified_tags[tag_hmm], quantified_tags[tag_gram]]]))[0]]
+                tag_final = inverted_tags[round(ETR.predict(np.array([[quantified_tags[tag_hmm], quantified_tags[tag_gram]]]))[0])]
                 if (tag_final == data_test[index][0][1]):
                     correct = correct + 1
                     correct_by_part.append(data_test[index][0][1])
@@ -855,6 +915,11 @@ def main(args):
                                 r["realizationFields"].append({"PoS":[pos]})        
             with open(args.data, 'w', encoding='utf8') as f:
                 json.dump(d, f, ensure_ascii=False)                    
+    elif (args.modus == 'competitive_prediction'):
+        with open(args.folder + '\\hmm.pkl', 'rb') as inp:
+            predictor = pickle.load(inp)
+            predictions = predictor.competitive_predict(get_data_for_prediction(args.data), args.folder, args.grammage, args.register_change)
+            predictions.to_csv(args.folder + "\\predictions.csv", index=False)
     else:
         print('Incorrect modus!')
 
