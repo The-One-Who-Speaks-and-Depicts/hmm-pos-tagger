@@ -480,34 +480,27 @@ class HMM:
             final_dictionary = pickle.load(f)
         comparison_dataset = pd.DataFrame(columns=['TOKEN', 'HMM', 'ENHANCED'])
         for index, sequence in enumerate(data):
-            if is_frag(sequence[0][0]):
-                word_tagged = ' '.join(map(lambda x: x[0], sequence))
-                tag_acquired = 'FRAG'
-                comparison_dataset.loc[index] = [sequence[0][0], tag_acquired, tag_acquired]
-            elif is_punct(sequence[0][0]):
-                word_tagged = ' '.join(map(lambda x: x[0], sequence))
-                tag_acquired = 'PUNCT'
-                comparison_dataset.loc[index] = [sequence[0][0], tag_acquired, tag_acquired]
-            elif is_digit(sequence[0][0]):
-                word_tagged = ' '.join(map(lambda x: x[0], sequence))
-                tag_acquired = 'DIGIT'
-                comparison_dataset.loc[index] = [sequence[0][0], tag_acquired, tag_acquired]
+            predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
+            word_tagged = ' '.join(map(lambda x: x[0], sequence))
+            tag_hmm = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+            if (register_change == 1):
+                analyzed_token = sequence[0][0].lower()
             else:
-                predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
-                word_tagged = ' '.join(map(lambda x: x[0], sequence))
-                tag_hmm = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
-                if (register_change == 1):
-                    analyzed_token = sequence[0][0].lower()
-                else:
-                    analyzed_token = sequence[0][0]
-                tag_acquired = tag_hmm
-                if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
-                    tag_acquired = 'ADJ'
-                if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
-                    tag_acquired = 'VERB'
-                if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
-                    tag_acquired = 'X'
-                comparison_dataset.loc[index] = [sequence[0][0], tag_hmm, tag_acquired]
+                analyzed_token = sequence[0][0]
+            tag_acquired = tag_hmm
+            if is_frag(analyzed_token):
+                tag_acquired = 'FRAG'
+            if is_punct(analyzed_token):
+                tag_acquired = 'PUNCT'
+            if is_digit(analyzed_token):
+                tag_acquired = 'DIGIT'
+            if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
+                tag_acquired = 'ADJ'
+            if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
+                tag_acquired = 'VERB'
+            if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
+                tag_acquired = 'X'
+            comparison_dataset.loc[index] = [sequence[0][0], tag_hmm, tag_acquired]
         return comparison_dataset
         
     def accuracy_score(self, data):
