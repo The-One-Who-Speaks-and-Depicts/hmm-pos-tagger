@@ -18,6 +18,20 @@ import pandas as pd
 import re
 from sklearn.ensemble import ExtraTreesRegressor
 import math
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+def n_gram_vectorizer(data, grams, register_change):
+    total_n_grams = []
+    for index, sequence in enumerate(data):
+        if (register_change == 1):
+            analyzed_token = sequence[0][0].lower()
+        else:
+            analyzed_token = sequence[0][0]
+        for gram_complex in test_split(analyzed_token, "", 0, grams, 0):
+            total_n_grams.append(' '.join(gram for gram in gram_complex))
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(total_n_grams)
+    return X
 
 def tf_idf_n_gram(k, ngram_count, max_ngram_count, corpus_length, words_with_ngram_count):
     return (k + (1 - k) * (ngram_count/max_ngram_count)) * (math.log(corpus_length/(1 + words_with_ngram_count)))
@@ -445,7 +459,7 @@ class HMM:
         else:     
             return np.matrix([self.emission_probs[self.tag_dict[tag]] for tag in probable_tags]).mean()
     
-    def predict(self, data, folder, grammage):
+    def predict(self, data, folder, grammage, register_change):
         with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
             final_dictionary = pickle.load(f)
         predicted = []
@@ -466,6 +480,10 @@ class HMM:
                 predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
                 word_tagged = ' '.join(map(lambda x: x[0], sequence))
                 tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+                if (register_change == 1):
+                    analyzed_token = sequence[0][0].lower()
+                else:
+                    analyzed_token = sequence[0][0]
                 if (re.search(final_dictionary['ADJ'][0], sequence[0][0]) or re.search(final_dictionary['ADJ'][1], sequence[0][0])):
                     tag_acquired = 'ADJ'
                 if (re.search(final_dictionary['VERB'][0], sequence[0][0]) or re.search(final_dictionary['VERB'][1], sequence[0][0])):
@@ -895,7 +913,7 @@ def main(args):
     elif (args.modus == 'prediction'):
         with open(args.folder + '\\hmm.pkl', 'rb') as inp:
             predictor = pickle.load(inp)
-            predictions = predictor.predict(get_data_for_prediction(args.data), args.folder, args.grammage)
+            predictions = predictor.predict(get_data_for_prediction(args.data), args.folder, args.grammage, int(args.register_change))
             with open(args.data, encoding='utf8') as f:
                 d = json.load(f)    
             for t in d["texts"]:
@@ -913,6 +931,10 @@ def main(args):
             predictor = pickle.load(inp)
             predictions = predictor.competitive_predict(get_data_for_prediction(args.data), args.folder, args.grammage, args.register_change)
             predictions.to_csv(args.folder + "\\predictions.csv", index=False)
+    elif (args.modus == 'vectorization'):
+        vectors = n_gram_vectorizer(get_test_data(args.data), int(args.grammage), int(args.register_change))
+        with open(args.folder + "\\vectors_" + args.grammage + "grams.pkl", "wb") as out:
+            pickle.dump(vectors, out, pickle.HIGHEST_PROTOCOL)
     else:
         print('Incorrect modus!')
 
