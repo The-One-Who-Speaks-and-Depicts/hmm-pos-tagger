@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*
 
+import re
 import pandas as pd
 import os
 from data_preparation import *

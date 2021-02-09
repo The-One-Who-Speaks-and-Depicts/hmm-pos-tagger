@@ -4,7 +4,7 @@ import itertools
 from sklearn.metrics import confusion_matrix
 
 def accuracy(correct_by_part, total_by_part, correct, total):
-	correct_by_part_fin = Counter(correct_by_part)
+    correct_by_part_fin = Counter(correct_by_part)
     total_by_part_fin = Counter(total_by_part)
     for correct_part in correct_by_part_fin.keys():
         for total_part in total_by_part_fin.keys():
@@ -13,7 +13,7 @@ def accuracy(correct_by_part, total_by_part, correct, total):
     print('Total accuracy score: ' + str(correct/total*100) + '%')
 
 def build_confusion_matrices(true_pred_dataset):
-	for pos in true_pred_dataset['pred'].unique().tolist():
+    for pos in true_pred_dataset['pred'].unique().tolist():
         this_pos_split = true_pred_dataset[true_pred_dataset['pred'] == pos]
         cm = confusion_matrix(this_pos_split['true'], this_pos_split['pred'])
         print(f'Raw confusion matrix for {pos}.\n{cm}')
