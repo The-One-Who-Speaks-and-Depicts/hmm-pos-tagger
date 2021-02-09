@@ -4,8 +4,6 @@ import os
 from random import shuffle
 from random import seed
 import numpy as np
-from matplotlib.colors import LogNorm
-import matplotlib.pyplot as plt
 import itertools
 from subcategorization import is_punct, is_frag, is_digit
 import argparse
