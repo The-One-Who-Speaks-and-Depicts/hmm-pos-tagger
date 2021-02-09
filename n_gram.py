@@ -7,6 +7,7 @@ from data_preparation import *
 from collections import Counter
 import numpy as np
 import pickle
+from metrics import accuracy, build_confusion_matrices
 
 def n_gram_train(filepath, grammage, folder, register_change, start_end_symbols, weighed, tf_idf_coefficient, length, double):
     tf_idf_coefficient = float(tf_idf_coefficient)
