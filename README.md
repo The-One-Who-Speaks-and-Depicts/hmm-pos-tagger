@@ -93,7 +93,7 @@ Modus for models testing. The results are shown in a terminal.
 
 ## Competitive Prediction
 
-Takes two pre-trained models (specifically, HMM and rule-enhanced HMM/n-gram hybrid), and compares their predictions for the out-of-domain data. The predictions are saved in predictions.csv file in **folder**.
+Takes three pre-trained models (specifically, HMM, n-gram and rule-enhanced HMM/n-gram hybrid), and compares their predictions for the out-of-domain data. The predictions are saved in predictions.csv file in **folder**.
 
 	python main.py −−modus competitive_prediction −−data <path> −−grammage <positive_integer> −−register_change <0 or 1> −−folder <path>
 

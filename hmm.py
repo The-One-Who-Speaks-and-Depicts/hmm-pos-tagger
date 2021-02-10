@@ -166,7 +166,7 @@ class HMM:
     def competitive_predict(self, data, folder, grammage, register_change):
         with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
             final_dictionary = pickle.load(f)
-        comparison_dataset = pd.DataFrame(columns=['TOKEN', 'HMM', 'ENHANCED'])
+        comparison_dataset = pd.DataFrame(columns=['TOKEN', 'HMM', 'GRAM', 'ENHANCED'])
         for index, sequence in enumerate(data):
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             word_tagged = ' '.join(map(lambda x: x[0], sequence))
@@ -176,6 +176,7 @@ class HMM:
             else:
                 analyzed_token = sequence[0][0]
             tag_acquired = tag_hmm
+            tag_gram = 'VERB'
             if is_frag(analyzed_token):
                 tag_acquired = 'FRAG'
             if is_punct(analyzed_token):
@@ -184,11 +185,13 @@ class HMM:
                 tag_acquired = 'DIGIT'
             if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
                 tag_acquired = 'ADJ'
+                tag_gram = 'ADJ'
             if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
                 tag_acquired = 'VERB'
             if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
                 tag_acquired = 'X'
-            comparison_dataset.loc[index] = [sequence[0][0], tag_hmm, tag_acquired]
+                tag_gram = 'X'
+            comparison_dataset.loc[index] = [sequence[0][0], tag_hmm, tag_gram, tag_acquired]
         return comparison_dataset
         
     def accuracy_score(self, data):
