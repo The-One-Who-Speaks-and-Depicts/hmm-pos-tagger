@@ -194,12 +194,12 @@ class HMM:
             comparison_dataset.loc[index] = [sequence[0][0], tag_hmm, tag_gram, tag_acquired]
         return comparison_dataset
         
-    def accuracy_score(self, data):
+    def accuracy_score(self, folder, data):
         correct = 0
         total = 0
         correct_by_part = []
         total_by_part = []
-        true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
+        true_pred_dataset = pd.DataFrame(columns=['token', 'true', 'pred'])
         for index, sequence in enumerate(data):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
@@ -208,7 +208,8 @@ class HMM:
                 correct_by_part.append(data[index][0][1])
             total = total + 1
             total_by_part.append(data[index][0][1])
-            true_pred_dataset.loc[index] = [data[index][0][1], tag_acquired]
+            true_pred_dataset.loc[index] = [data[index][0][0], data[index][0][1], tag_acquired]
+        true_pred_dataset.to_csv(folder + "\\" + 'res.csv', index=False)
         accuracy(correct_by_part, total_by_part, correct, total)        
         build_confusion_matrices(true_pred_dataset)
 
@@ -227,11 +228,15 @@ class HMM:
         total = 0
         correct_by_part = []
         total_by_part = []
-        true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
+        true_pred_dataset = pd.DataFrame(columns=['token', 'true', 'pred'])
         overall_positions = []
         verb_positions = []
         adj_positions = []
         x_positions = []
+        overall_positions_end = []
+        verb_positions_end = []
+        adj_positions_end = []
+        x_positions_end = []
         for index, sequence in enumerate(data):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
@@ -308,35 +313,53 @@ class HMM:
                     if tag_acquired == 'VERB':
                         if (analyzed_token.find(final_dictionary['VERB'][0]) != -1):
                             verb_positions.append(analyzed_token.find(final_dictionary['VERB'][0]))
+                            verb_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['VERB'][0]) + int(grammage) - 1)
                             overall_positions.append(analyzed_token.find(final_dictionary['VERB'][0]))
+                            overall_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['VERB'][0]) + int(grammage) - 1)
                         else:
                             verb_positions.append(analyzed_token.find(final_dictionary['VERB'][1]))
+                            verb_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['VERB'][1]) + int(grammage) - 1)
                             overall_positions.append(analyzed_token.find(final_dictionary['VERB'][1]))
+                            overall_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['VERB'][1]) + int(grammage) - 1)
                     elif tag_acquired == 'ADJ':
                         if (analyzed_token.find(final_dictionary['ADJ'][0]) != -1):
                             adj_positions.append(analyzed_token.find(final_dictionary['ADJ'][0]))
+                            adj_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['ADJ'][0]) + int(grammage) - 1)
                             overall_positions.append(analyzed_token.find(final_dictionary['ADJ'][0]))
+                            overall_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['ADJ'][0]) + int(grammage) - 1)
                         else:
                             adj_positions.append(analyzed_token.find(final_dictionary['ADJ'][1]))
+                            adj_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['ADJ'][1]) + int(grammage) - 1)
                             overall_positions.append(analyzed_token.find(final_dictionary['ADJ'][1]))
+                            overall_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['ADJ'][1]) + int(grammage) - 1)
                     elif tag_acquired == 'X':
                         if (analyzed_token.find(final_dictionary['X'][0]) != -1):
                             x_positions.append(analyzed_token.find(final_dictionary['X'][0]))
+                            x_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['X'][0]) + int(grammage) - 1)
                             overall_positions.append(analyzed_token.find(final_dictionary['X'][0]))
+                            overall_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['X'][0]) + int(grammage) - 1)
                         else:
                             x_positions.append(analyzed_token.find(final_dictionary['X'][1]))
+                            x_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['X'][1]) + int(grammage) - 1)
                             overall_positions.append(analyzed_token.find(final_dictionary['X'][1]))
-            true_pred_dataset.loc[index] = [data[index][0][1], tag_acquired]
+                            overall_positions_end.append(len(analyzed_token) - analyzed_token.find(final_dictionary['X'][1]) + int(grammage) - 1)
+            true_pred_dataset.loc[index] = [data[index][0][0], data[index][0][1], tag_acquired]
             total = total + 1
             total_by_part.append(data[index][0][1])
+        true_pred_dataset.to_csv(folder + "\\" + 'res.csv', index=False)
         accuracy(correct_by_part, total_by_part, correct, total)        
         build_confusion_matrices(true_pred_dataset)
         verb_positions_mean = np.mean(verb_positions)
         adj_positions_mean = np.mean(adj_positions)
         x_positions_mean = np.mean(x_positions)
         overall_positions_mean = np.mean(overall_positions)
-        print(f'Adjective definitive ngram mean position: {adj_positions_mean}\nVerb definitive ngram mean position: {verb_positions_mean}\nX definitive ngram mean position: {x_positions_mean}\nDefinitive ngram mean position:{overall_positions_mean}')
-    
+        verb_positions_end_mean = np.mean(verb_positions_end)
+        adj_positions_end_mean = np.mean(adj_positions_end)
+        x_positions_end_mean = np.mean(x_positions_end)
+        overall_positions_end_mean = np.mean(overall_positions_end)
+        print(f'Adjective definitive ngram mean position: {adj_positions_mean}\nVerb definitive ngram mean position: {verb_positions_mean}\nX definitive ngram mean position: {x_positions_mean}\nDefinitive ngram mean position: {overall_positions_mean}')
+        print(f'Adjective definitive ngram from end mean position: {adj_positions_end_mean}\nVerb definitive ngram from end mean position: {verb_positions_end_mean}\nX definitive ngram from end mean position: {x_positions_end_mean}\nDefinitive ngram from end mean position: {overall_positions_end_mean}')
+
     def hybrid_accuracy_score_with_classification(self, data_test, data_train, folder, grammage, register_change):
         with open(folder + "\\" + grammage + "grams.pkl", 'rb') as f:
             final_dictionary = pickle.load(f)
@@ -379,7 +402,7 @@ class HMM:
         total = 0
         correct_by_part = []
         total_by_part = []        
-        true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
+        true_pred_dataset = pd.DataFrame(columns=['tok', 'true', 'pred'])
         for index, sequence in enumerate(data_test):  
             predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
             tag_hmm = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
@@ -397,13 +420,14 @@ class HMM:
                 if (tag_final == data_test[index][0][1]):
                     correct = correct + 1
                     correct_by_part.append(data_test[index][0][1])
-                true_pred_dataset.loc[index] = [data_test[index][0][1], tag_final]
+                true_pred_dataset.loc[index] = [data_test[index][0][0], data_test[index][0][1], tag_final]
             else:
                 if (tag_hmm == data_test[index][0][1]):
                     correct = correct + 1
                     correct_by_part.append(data_test[index][0][1])
-                true_pred_dataset.loc[index] = [data_test[index][0][1], tag_hmm]
+                true_pred_dataset.loc[index] = [data_test[index][0][0], data_test[index][0][1], tag_hmm]
             total = total + 1
             total_by_part.append(data_test[index][0][1])
+        true_pred_dataset.to_csv(folder + "\\" + 'res.csv', index=False)
         accuracy(correct_by_part, total_by_part, correct, total)        
         build_confusion_matrices(true_pred_dataset)

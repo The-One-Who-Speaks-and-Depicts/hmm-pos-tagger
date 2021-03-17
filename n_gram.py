@@ -110,7 +110,7 @@ def n_gram_test(data, folder, grammage, register_change, start_end_symbols, leng
     total = 0
     correct_by_part = []
     total_by_part = []
-    true_pred_dataset = pd.DataFrame(columns=['true', 'pred'])
+    true_pred_dataset = pd.DataFrame(columns=['tok', 'true', 'pred'])
     for index, row in test_dataset.iterrows():
       key_found = False
       for key in final_dictionary.keys():
@@ -119,14 +119,14 @@ def n_gram_test(data, folder, grammage, register_change, start_end_symbols, leng
             correct = correct + 1
             correct_by_part.append(key)
           key_found = True
-          true_pred_dataset.loc[index] = [row['TAG'], key]
+          true_pred_dataset.loc[index] = [row['WORD'], row['TAG'], key]
           break
         elif re.search(final_dictionary[key][1], row['WORD']):
           if key == row['TAG']:
             correct = correct + 1
             correct_by_part.append(key)
           key_found = True
-          true_pred_dataset.loc[index] = [row['TAG'], key]
+          true_pred_dataset.loc[index] = [row['WORD'], row['TAG'], key]
           break
         elif length == 1:
             if len(row['WORD']) == by_length_dictionary['CCONJ']:
@@ -134,29 +134,30 @@ def n_gram_test(data, folder, grammage, register_change, start_end_symbols, leng
                     correct = correct + 1
                     correct_by_part.append(key)
                 key_found = True
-                true_pred_dataset.loc[index] = [row['TAG'], key]
+                true_pred_dataset.loc[index] = [row['WORD'], row['TAG'], key]
                 break
             elif len(row['WORD']) == by_length_dictionary['ADP']:
                 if row['TAG'] == 'ADP':
                     correct = correct + 1
                     correct_by_part.append(key)
                 key_found = True
-                true_pred_dataset.loc[index] = [row['TAG'], key]
+                true_pred_dataset.loc[index] = [row['WORD'], row['TAG'], key]
                 break
             elif len(row['WORD']) == by_length_dictionary['VERB']:
                 if row['TAG'] == 'VERB':
                     correct = correct + 1
                     correct_by_part.append(key)
                 key_found = True
-                true_pred_dataset.loc[index] = [row['TAG'], key]
+                true_pred_dataset.loc[index] = [row['WORD'], row['TAG'], key]
                 break
       if not key_found:
         if row['TAG'] == 'VERB':
            correct = correct + 1
            correct_by_part.append(key)
-        true_pred_dataset.loc[index] = [row['TAG'], 'VERB']
+        true_pred_dataset.loc[index] = [row['WORD'], row['TAG'], 'VERB']
       total = total + 1
       total_by_part.append(key)
+    true_pred_dataset.to_csv(folder + "\\" + 'res.csv', index=False)
     accuracy(correct_by_part, total_by_part, correct, total)        
     build_confusion_matrices(true_pred_dataset)
  

@@ -32,7 +32,7 @@ def main(args):
         if (args.method == 'hmm'):
             with open(args.folder + '\\hmm.pkl', 'rb') as inp:
                 predictor = pickle.load(inp)
-                predictor.accuracy_score(get_test_data(args.data))
+                predictor.accuracy_score(args.folder, get_test_data(args.data))
         elif (args.method == 'grams'):
             n_gram_test(args.data, args.folder, args.grammage, args.register_change, args.start_end_symbols, int(args.length))
         elif (args.method == 'hmmg'):
@@ -44,7 +44,7 @@ def main(args):
                 predictor = pickle.load(inp)
                 predictor.hybrid_accuracy_score_with_classification(get_test_data(args.data), get_test_data(args.train_data), args.folder, args.grammage, args.register_change)
         elif (args.method == 'tt'):
-            tree_tag(get_test_data(args.data))
+            tree_tag(get_test_data(args.data), args.folder)
         else:
             print('Wrong method!')
     elif (args.modus == 'prediction'):

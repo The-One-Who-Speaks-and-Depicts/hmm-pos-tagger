@@ -44,7 +44,7 @@ The result of program training modus, is .pkl file, containing trained model, ca
 
 ### Accuracy
 
-Modus for models testing. The results are shown in a terminal.
+Modus for models testing. The results are shown in a terminal. File 'res.csv' is saved in the folder, provided by user via argument 'folder'. This file contains three columns: token, true PoS value, and predicted PoS value.
 
 * HMM:
 

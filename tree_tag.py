@@ -6,7 +6,7 @@ import pandas as pd
 import itertools
 from metrics import accuracy, build_confusion_matrices
 
-def tree_tag(data):
+def tree_tag(data, folder):
     tagger = treetaggerwrapper.TreeTagger(TAGLANG='bg')
     correct = 0
     total = 0
@@ -53,5 +53,9 @@ def tree_tag(data):
         total = total + 1
         total_by_part.append(data[index][0][1])
         true_pred_dataset.loc[index] = [data[index][0][1], tag_acquired]
+    final_dataset = pd.DataFrame(columns=['tok', 'true', 'pred'])
+    for index, sequence in enumerate(data):
+        final_dataset[index] = [data[index][0][0], data[index][0][1], true_pred_dataset.loc[index]['pred']]
+    final_dataset.to_csv(folder + "\\" + 'res.csv', index=False)
     accuracy(correct_by_part, total_by_part, correct, total)        
     build_confusion_matrices(true_pred_dataset)
