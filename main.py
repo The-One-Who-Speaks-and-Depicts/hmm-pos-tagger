@@ -5,7 +5,6 @@ from random import seed
 import argparse
 import pickle
 import json
-
 from hmm import HMM
 from data_preparation import *
 from n_gram import n_gram_train, n_gram_test

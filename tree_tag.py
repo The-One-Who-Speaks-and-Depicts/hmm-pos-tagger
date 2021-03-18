@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*
-
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import treetaggerwrapper
 import pandas as pd
 import itertools
