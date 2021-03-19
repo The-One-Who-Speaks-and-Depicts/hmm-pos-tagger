@@ -43,7 +43,7 @@ def main(args):
                 predictor = pickle.load(inp)
                 predictor.hybrid_accuracy_score_with_classification(get_test_data(args.data), get_test_data(args.train_data), args.folder, args.grammage, args.register_change)
         elif (args.method == 'tt'):
-            tree_tag(get_test_data(args.data), args.folder)
+            tree_tag(get_test_data(args.data), args.folder, args.lang)
         else:
             print('Wrong method!')
     elif (args.modus == 'prediction'):
@@ -97,6 +97,7 @@ if __name__ == '__main__':
     parser.add_argument('--weighed', '-w', default='0')
     parser.add_argument('--length', '-l', default='0')
     parser.add_argument('--double', '-d', default='0')
+    parser.add_argument('--lang', default='bg')
 
     args = parser.parse_args()
     main(args)
