@@ -89,7 +89,7 @@ def get_test_data(filepath):
         current_sequence = []
         if (instance[0] != "#" and instance.strip()):
             cols = instance.split()
-            current_sequence.append((cols[1], cols[3]))
+            current_sequence.append((cols[1], cols[2]))
             all_sequences.append(current_sequence)
     return all_sequences
 

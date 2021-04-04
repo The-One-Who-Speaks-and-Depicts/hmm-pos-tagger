@@ -237,75 +237,85 @@ class HMM:
         verb_positions_end = []
         adj_positions_end = []
         x_positions_end = []
-        for index, sequence in enumerate(data):  
-            predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
-            tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
-            found_with_ngram = False
-            if (register_change == 0):
-                analyzed_token = sequence[0][0]
+        for index, sequence in enumerate(data):
+            if is_frag(sequence[0][0]):
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_acquired = 'FRAG'
+            elif is_punct(sequence[0][0]):
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_acquired = 'PUNCT'
+            elif is_digit(sequence[0][0]):
+                word_tagged = ' '.join(map(lambda x: x[0], sequence))
+                tag_acquired = 'DIGIT'
             else:
-                if (start_end_symbols == 0):
-                    analyzed_token = sequence[0][0].lower()
+                predicted_tags = self.viterbi(list(map(lambda x: x[0], sequence)))
+                tag_acquired = ' '.join([str(self.tags[tag]) for tag in predicted_tags])
+                found_with_ngram = False
+                if (register_change == 0):
+                    analyzed_token = sequence[0][0]
                 else:
-                    analyzed_token = "#" + sequence[0][0].lower() + "#"
-            if ((grammage == '3') and (register_change == 1) and (start_end_symbols == 1)) :
-                if (re.search(final_dictionary['AUX'][0], analyzed_token) or re.search(final_dictionary['AUX'][1], analyzed_token)):
-                    tag_acquired = 'AUX'
-                if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
-                    tag_acquired = 'X'
-                if (re.search(final_dictionary['SCONJ'][0], analyzed_token) or re.search(final_dictionary['SCONJ'][1], analyzed_token)):
-                    tag_acquired = 'SCONJ'
-                if (re.search(final_dictionary['PROPN'][0], analyzed_token) or re.search(final_dictionary['PROPN'][1], analyzed_token)):
-                    tag_acquired = 'PROPN'
-                if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
-                    tag_acquired = 'ADJ'
-                #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
-                    #tag_acquired = 'ADV' 
-                if (re.search(final_dictionary['PRON'][0], analyzed_token) or re.search(final_dictionary['PRON'][1], analyzed_token)):
-                    tag_acquired = 'PRON'
-            elif ((grammage == '3') and ((register_change == 1) and (start_end_symbols == 0))):
-                if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
-                    tag_acquired = 'VERB'
-                    found_with_ngram = True
-                if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
-                    tag_acquired = 'ADJ'
-                    found_with_ngram = True
-                #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
-                    #tag_acquired = 'ADV' 
-                if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
-                    tag_acquired = 'X'
-                    found_with_ngram = True
-            elif ((grammage == '3') and ((register_change == 0) and (start_end_symbols == 0))):
-                if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
-                    tag_acquired = 'VERB'
-                if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
-                    tag_acquired = 'ADJ'
-                #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
-                    #tag_acquired = 'ADV' 
-                if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
-                    tag_acquired = 'X'
-            elif grammage == '4':
-                if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
-                    tag_acquired = 'VERB'
-                if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
-                    tag_acquired = 'ADJ'
-                #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
-                    #tag_acquired = 'ADV'
-                #if (re.search(final_dictionary['PRON'][0], analyzed_token) or re.search(final_dictionary['PRON'][1], analyzed_token)):
-                    #tag_acquired = 'PRON'
-                if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
-                    tag_acquired = 'X'
-            elif grammage == 'double_3_and_4':
-                if (re.search(four_gram_dictionary['VERB'][0], analyzed_token) or re.search(four_gram_dictionary['VERB'][1], analyzed_token)):
-                    tag_acquired = 'VERB'
-                if (re.search(three_gram_dictionary['ADJ'][0], analyzed_token) or re.search(three_gram_dictionary['ADJ'][1], analyzed_token)):
-                    tag_acquired = 'ADJ'
-                #if (re.search(three_gram_dictionary['ADV'][0], analyzed_token) or re.search(three_gram_dictionary['ADV'][1], analyzed_token)):
-                    #tag_acquired = 'ADV'
-                #if (re.search(four_gram_dictionary['PRON'][0], analyzed_token) or re.search(four_gram_dictionary['PRON'][1], analyzed_token)):
-                    #tag_acquired = 'PRON'                    
-                if (re.search(three_gram_dictionary['X'][0], analyzed_token) or re.search(three_gram_dictionary['X'][1], analyzed_token)):
-                    tag_acquired = 'X'
+                    if (start_end_symbols == 0):
+                        analyzed_token = sequence[0][0].lower()
+                    else:
+                        analyzed_token = "#" + sequence[0][0].lower() + "#"
+                if ((grammage == '3') and (register_change == 1) and (start_end_symbols == 1)) :
+                    if (re.search(final_dictionary['AUX'][0], analyzed_token) or re.search(final_dictionary['AUX'][1], analyzed_token)):
+                        tag_acquired = 'AUX'
+                    if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
+                        tag_acquired = 'X'
+                    if (re.search(final_dictionary['SCONJ'][0], analyzed_token) or re.search(final_dictionary['SCONJ'][1], analyzed_token)):
+                        tag_acquired = 'SCONJ'
+                    if (re.search(final_dictionary['PROPN'][0], analyzed_token) or re.search(final_dictionary['PROPN'][1], analyzed_token)):
+                        tag_acquired = 'PROPN'
+                    if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
+                        tag_acquired = 'ADJ'
+                    #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
+                        #tag_acquired = 'ADV' 
+                    if (re.search(final_dictionary['PRON'][0], analyzed_token) or re.search(final_dictionary['PRON'][1], analyzed_token)):
+                        tag_acquired = 'PRON'
+                elif ((grammage == '3') and ((register_change == 1) and (start_end_symbols == 0))):
+                    if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
+                        tag_acquired = 'VERB'
+                        found_with_ngram = True
+                    if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
+                        tag_acquired = 'ADJ'
+                        found_with_ngram = True
+                    #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
+                        #tag_acquired = 'ADV' 
+                    if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
+                        tag_acquired = 'X'
+                        found_with_ngram = True
+                elif ((grammage == '3') and ((register_change == 0) and (start_end_symbols == 0))):
+                    if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
+                        tag_acquired = 'VERB'
+                    if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
+                        tag_acquired = 'ADJ'
+                    #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
+                        #tag_acquired = 'ADV' 
+                    if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
+                        tag_acquired = 'X'
+                elif grammage == '4':
+                    if (re.search(final_dictionary['VERB'][0], analyzed_token) or re.search(final_dictionary['VERB'][1], analyzed_token)):
+                        tag_acquired = 'VERB'
+                    if (re.search(final_dictionary['ADJ'][0], analyzed_token) or re.search(final_dictionary['ADJ'][1], analyzed_token)):
+                        tag_acquired = 'ADJ'
+                    #if (re.search(final_dictionary['ADV'][0], analyzed_token) or re.search(final_dictionary['ADV'][1], analyzed_token)):
+                        #tag_acquired = 'ADV'
+                    #if (re.search(final_dictionary['PRON'][0], analyzed_token) or re.search(final_dictionary['PRON'][1], analyzed_token)):
+                        #tag_acquired = 'PRON'
+                    if (re.search(final_dictionary['X'][0], analyzed_token) or re.search(final_dictionary['X'][1], analyzed_token)):
+                        tag_acquired = 'X'
+                elif grammage == 'double_3_and_4':
+                    if (re.search(four_gram_dictionary['VERB'][0], analyzed_token) or re.search(four_gram_dictionary['VERB'][1], analyzed_token)):
+                        tag_acquired = 'VERB'
+                    if (re.search(three_gram_dictionary['ADJ'][0], analyzed_token) or re.search(three_gram_dictionary['ADJ'][1], analyzed_token)):
+                        tag_acquired = 'ADJ'
+                    #if (re.search(three_gram_dictionary['ADV'][0], analyzed_token) or re.search(three_gram_dictionary['ADV'][1], analyzed_token)):
+                        #tag_acquired = 'ADV'
+                    #if (re.search(four_gram_dictionary['PRON'][0], analyzed_token) or re.search(four_gram_dictionary['PRON'][1], analyzed_token)):
+                        #tag_acquired = 'PRON'                    
+                    if (re.search(three_gram_dictionary['X'][0], analyzed_token) or re.search(three_gram_dictionary['X'][1], analyzed_token)):
+                        tag_acquired = 'X'
             if (tag_acquired == data[index][0][1]):
                 correct = correct + 1
                 correct_by_part.append(data[index][0][1])

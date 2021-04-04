@@ -65,7 +65,7 @@ def main(args):
                                 id, pos = p.split('\t')
                                 textID, clauseID, realizationID = id.split('_')
                                 if ((r["textID"] == textID) and (r["clauseID"] == clauseID) and (r["realizationID"] == realizationID)):                                
-                                    r["realizationFields"].append({"PoS":[pos]})        
+                                    r["realizationFields"].append({"PoS":[{"name":pos}]})        
             with open(args.data, 'w', encoding='utf8') as f:
                 json.dump(d, f, ensure_ascii=False)                    
     elif (args.modus == 'competitive_prediction'):
