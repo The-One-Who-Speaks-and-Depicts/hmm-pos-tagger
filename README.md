@@ -89,7 +89,7 @@ Modus for models testing. The results are shown in a terminal. File 'res.csv' is
 		python main.py −−modus accuracy −−method tt −−data <path>
 
 	* **data:** corresponds to the path of the file containing test data. It should be in [Universal Dependencies CoNLL-U](https://universaldependencies.org/format.html) format, or similar. Required argument.
-
+    * **lang:** corresponds to the language of TreeTagger model. Now may be Bulgarian (bg), Russian (ru), and Slovak (sk). By default the argument is Slovak (sk).
 
 ## Competitive Prediction
 
